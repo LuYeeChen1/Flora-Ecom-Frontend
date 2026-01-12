@@ -1,0 +1,9 @@
+export interface Flower {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  imageUrl: string;
+  stock: number;
+  category: string;
+}
