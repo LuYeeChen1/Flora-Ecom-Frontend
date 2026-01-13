@@ -4,6 +4,7 @@ import LoginView from '../views/LoginView.vue'
 import NotFound from '../views/NotFound.vue'
 // 1. 引入新页面
 import ProfileView from '../views/ProfileView.vue'
+import RegisterSuccessView from '../views/RegisterSuccessView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,7 +30,12 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: NotFound
-    }
+    },
+    {
+      path: '/register-success',
+      name: 'register-success',
+      component: RegisterSuccessView
+    },
   ]
 })
 
