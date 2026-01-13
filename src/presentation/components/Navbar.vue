@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
+import { useAuthStore } from '../store/authStore'; // 确保路径正确
 
-const isMobileMenuOpen = ref(false)
+const authStore = useAuthStore();
+const router = useRouter();
+
+const isProfileOpen = ref(false);
+
+const handleLogout = async () => {
+  await authStore.logout();
+  isProfileOpen.value = false;
+  router.push('/login');
+};
 </script>
 
 <template>
@@ -13,34 +23,76 @@ const isMobileMenuOpen = ref(false)
         <div class="flex-shrink-0">
           <RouterLink to="/" class="flex items-center gap-3 group">
             <div class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-emerald-600 p-[1px]">
-              <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-violet-200 font-serif italic text-sm border border-white/10">
-                V
-              </div>
+              <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-violet-200 font-serif italic text-sm border border-white/10">V</div>
             </div>
-            <span class="text-2xl font-serif font-medium tracking-widest text-violet-100 group-hover:text-white transition-colors">
-              FlowerShop
-            </span>
+            <span class="text-2xl font-serif font-medium tracking-widest text-violet-100 group-hover:text-white transition-colors">FlowerShop</span>
           </RouterLink>
         </div>
 
         <div class="hidden md:block">
           <div class="ml-10 flex items-baseline space-x-10">
-            <RouterLink to="/" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">
-              首页
-            </RouterLink>
-            <RouterLink to="/catalog" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">
-              鲜花图鉴
-            </RouterLink>
-            <a href="#" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">
-              品牌故事
-            </a>
+            <RouterLink to="/" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">首页</RouterLink>
+            <RouterLink to="/catalog" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">鲜花图鉴</RouterLink>
+            <a href="#" class="text-slate-300 hover:text-violet-300 font-serif text-base tracking-wide transition-colors duration-300">品牌故事</a>
           </div>
         </div>
 
-        <div class="hidden md:block">
-          <button class="bg-violet-700/20 border border-violet-500/50 hover:bg-violet-600 text-violet-100 px-6 py-2 rounded-sm font-serif text-sm tracking-widest shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all">
-            定制花束
-          </button>
+        <div class="hidden md:block relative">
+          
+          <div v-if="authStore.user" class="relative">
+            <button 
+              @click="isProfileOpen = !isProfileOpen"
+              class="flex items-center gap-3 pl-3 pr-2 py-1.5 rounded-full hover:bg-white/5 transition-colors border border-transparent hover:border-white/10 focus:outline-none"
+            >
+              <span class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                {{ authStore.user.email ? authStore.user.email.charAt(0).toUpperCase() : 'U' }}
+              </span>
+              
+              <span class="text-sm font-medium text-violet-100 max-w-[150px] truncate">
+                {{ authStore.user.email }}
+              </span>
+
+              <svg :class="{'rotate-180': isProfileOpen}" class="h-4 w-4 text-violet-300 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div 
+              v-if="isProfileOpen"
+              class="absolute right-0 mt-2 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-2xl py-2 z-50 transform origin-top-right transition-all backdrop-blur-xl"
+            >
+              <div class="px-4 py-3 border-b border-white/5 bg-white/5">
+                <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Signed in as</p>
+                <p class="text-sm font-bold text-white truncate mt-1">{{ authStore.user.email }}</p>
+              </div>
+              
+              <div class="py-1">
+                 <RouterLink to="/profile" class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors">
+                  <svg class="mr-3 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                  个人中心
+                </RouterLink>
+              </div>
+              
+              <div class="border-t border-white/5 py-1">
+                <button 
+                  @click="handleLogout"
+                  class="flex w-full items-center px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-colors"
+                >
+                  <svg class="mr-3 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                  退出登录
+                </button>
+              </div>
+            </div>
+            
+            <div v-if="isProfileOpen" @click="isProfileOpen = false" class="fixed inset-0 z-40 cursor-default"></div>
+          </div>
+
+          <RouterLink v-else to="/login">
+            <button class="bg-violet-700/20 border border-violet-500/50 hover:bg-violet-600 text-violet-100 px-6 py-2 rounded-sm font-serif text-sm tracking-widest shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all">
+              登录 / 注册
+            </button>
+          </RouterLink>
+
         </div>
       </div>
     </div>

@@ -1,9 +1,7 @@
-// 简单的检查一下，确保是这样的
+// src/presentation/store/flowerStore.ts
 import { defineStore } from 'pinia';
 import type { Flower } from '../../core/entities/Flower';
-import { HttpFlowerRepository } from '../../infrastructure/api/HttpFlowerRepository';
-
-const flowerRepo = new HttpFlowerRepository();
+import type { FlowerRepository } from '../../core/interfaces/FlowerRepository';
 
 export const useFlowerStore = defineStore('flower', {
   state: () => ({
@@ -11,10 +9,18 @@ export const useFlowerStore = defineStore('flower', {
     loading: false
   }),
   actions: {
-    async fetchFlowers() {
+    /**
+     * 接收任何实现了 FlowerRepository 接口的对象
+     * 这样在测试时可以传入 MockRepo，在生产时传入 HttpRepo
+     */
+    async fetchFlowers(repo: FlowerRepository) {
       this.loading = true;
       try {
-        this.flowers = await flowerRepo.getFlowers();
+        // 核心修复：使用传入的 repo 实例获取数据
+        this.flowers = await repo.getFlowers();
+      } catch (error) {
+        console.error('Failed to fetch flowers from repository:', error);
+        // 这里可以添加错误处理逻辑，比如设置 error 状态给 UI 展示
       } finally {
         this.loading = false;
       }
