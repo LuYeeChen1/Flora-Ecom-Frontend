@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Flower } from '../../core/entities/Flower';
+import type { Flower } from '../../domain/models/Flower';
 
 const props = defineProps<{
   flower: Flower

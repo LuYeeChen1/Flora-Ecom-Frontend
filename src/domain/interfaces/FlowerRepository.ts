@@ -1,5 +1,5 @@
 // src/core/interfaces/FlowerRepository.ts
-import type { Flower } from '../entities/Flower';
+import type { Flower } from '../models/Flower';
 
 export interface FlowerRepository {
   /**

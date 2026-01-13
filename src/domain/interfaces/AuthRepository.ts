@@ -1,5 +1,5 @@
 // 这里建议加上 type，因为 User 在这里只是作为类型使用
-import type { User } from '../entities/User';
+import type { User } from '../models/User';
 
 export type AuthResult = {
   user?: User;

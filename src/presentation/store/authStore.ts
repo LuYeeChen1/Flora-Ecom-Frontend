@@ -10,7 +10,7 @@ import axios from 'axios';
 // Amplify: AWS 提供的工具，用来管理当前的登录会话
 import { fetchAuthSession } from 'aws-amplify/auth';
 // Repository: 我们自己封装的类，专门处理 AWS Cognito 那些复杂的脏活累活
-import { CognitoAuthRepository } from '../../infrastructure/api/CognitoAuthRepository';
+import { CognitoAuthRepository } from '../../infrastructure/repositories/CognitoAuthRepository';
 
 // === 2. 定义数据接口 ===
 // 这里的字段必须和后端 Java 的 UserDTOResponse 以及 MySQL 数据库完全一致

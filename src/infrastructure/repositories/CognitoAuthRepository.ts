@@ -1,6 +1,6 @@
 import { confirmSignUp, fetchUserAttributes, getCurrentUser, signIn, signOut, signUp } from 'aws-amplify/auth';
-import { User } from '../../core/entities/User';
-import type { AuthRepository, AuthResult } from '../../core/interfaces/AuthRepository';
+import type { AuthRepository, AuthResult } from '../../domain/interfaces/AuthRepository';
+import { User } from '../../domain/models/User';
 
 export class CognitoAuthRepository implements AuthRepository {
   

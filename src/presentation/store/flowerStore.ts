@@ -1,7 +1,7 @@
 // src/presentation/store/flowerStore.ts
 import { defineStore } from 'pinia';
-import type { Flower } from '../../core/entities/Flower';
-import type { FlowerRepository } from '../../core/interfaces/FlowerRepository';
+import type { FlowerRepository } from '../../domain/interfaces/FlowerRepository';
+import type { Flower } from '../../domain/models/Flower';
 
 export const useFlowerStore = defineStore('flower', {
   state: () => ({

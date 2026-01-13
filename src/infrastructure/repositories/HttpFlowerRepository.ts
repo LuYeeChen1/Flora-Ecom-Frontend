@@ -1,6 +1,6 @@
 import axios from 'axios';
-import type { Flower } from '../../core/entities/Flower';
-import type { FlowerRepository } from '../../core/interfaces/FlowerRepository';
+import type { FlowerRepository } from '../../domain/interfaces/FlowerRepository';
+import type { Flower } from '../../domain/models/Flower';
 
 export class HttpFlowerRepository implements FlowerRepository {
   // 定义后端基础路径 (根据你的 Spring Boot 端口)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { HttpFlowerRepository } from '../../infrastructure/api/HttpFlowerRepository';
+import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
 import FlowerCard from '../components/FlowerCard.vue';
 import HeroSection from '../components/HeroSection.vue';
 import { useFlowerStore } from '../store/flowerStore';
