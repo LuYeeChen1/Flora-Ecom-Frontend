@@ -81,6 +81,9 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true;
     try {
       // 1. 问一下 AWS Amplify SDK: "现在的浏览器缓存里有有效的会话吗？"
+      // 👇 这一行代码会自动去 LocalStorage 找 Token，
+      // 👇 如果过期了，它会自动用 Refresh Token 去换新的，全自动完成。
+
       const session = await fetchAuthSession();
       
       console.log('🔍 [CheckAuth] 检测会话:', session);
@@ -89,6 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 为什么要 idToken？因为 access token 里没有 email 字段。
       // 我们的后端同步接口需要 email 来写入数据库，所以必须用 idToken。
       if (session.tokens?.idToken) {
+        // 只要能拿到 Token，就算“登录状态”
         // 把 Token 变成字符串，存到状态里
         token.value = session.tokens.idToken.toString();
         
