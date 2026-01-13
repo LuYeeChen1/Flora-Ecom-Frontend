@@ -12,6 +12,7 @@
     "@aws-amplify/ui-vue": "^4.3.7",
     "@tailwindcss/vite": "^4.1.18",
     "aws-amplify": "^6.15.9",
+    "axios": "^1.13.2",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.1.18",
     "vue": "^3.5.24",
