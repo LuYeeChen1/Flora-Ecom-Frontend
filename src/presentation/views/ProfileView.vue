@@ -107,8 +107,9 @@ const handleLogout = async () => {
           </div>
 
           <div class="mt-10 flex gap-4 justify-center sm:justify-start">
-            <button 
+          <button 
               v-if="authStore.user?.role === 'CUSTOMER'"
+              @click="router.push('/apply-seller')" 
               class="px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-lg shadow-violet-200"
             >
               Apply to become Seller

@@ -16,10 +16,11 @@ import { CognitoAuthRepository } from '../../infrastructure/repositories/Cognito
 // 这里的字段必须和后端 Java 的 UserDTOResponse 以及 MySQL 数据库完全一致
 // 因为我们最终要展示的是存在自己数据库里的信息
 export interface UserProfile {
-  id: string;       // 用户的唯一 ID (对应 Cognito 的 sub)
-  email: string;    // 邮箱
-  username: string; // 用户名
-  role: string;     // 角色 (CUSTOMER, SELLER, ADMIN) -> 这是业务逻辑最看重的！
+  id: string;       
+  email: string;    
+  username: string; 
+  avatarUrl?: string;
+  role: string;     
 }
 
 export const useAuthStore = defineStore('auth', () => {

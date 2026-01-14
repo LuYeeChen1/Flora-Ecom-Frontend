@@ -44,8 +44,9 @@ const handleLogout = async () => {
               @click="isProfileOpen = !isProfileOpen"
               class="flex items-center gap-3 pl-3 pr-2 py-1.5 rounded-full hover:bg-white/5 transition-colors border border-transparent hover:border-white/10 focus:outline-none"
             >
-              <span class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
-                {{ authStore.user.email ? authStore.user.email.charAt(0).toUpperCase() : 'U' }}
+              <span class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-inner overflow-hidden">
+                <img v-if="authStore.user?.avatarUrl" :src="authStore.user.avatarUrl" class="w-full h-full object-cover" />
+                <span v-else>{{ authStore.user?.email ? authStore.user.email.charAt(0).toUpperCase() : 'U' }}</span>
               </span>
               
               <span class="text-sm font-medium text-violet-100 max-w-[150px] truncate">
