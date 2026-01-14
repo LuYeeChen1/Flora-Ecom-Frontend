@@ -3,7 +3,6 @@
  * ==========================================================
  * [Clean Architecture - Presentation Layer]
  * 职责：负责 UI 渲染、用户交互及即时准入逻辑。
- * 修复：针对 BUSINESS 模式的字段映射对齐，解决 400 报错。
  * ==========================================================
  */
 import axios from 'axios';
@@ -14,12 +13,11 @@ import { useSellerStore } from '../store/sellerStore';
 const sellerStore = useSellerStore();
 const authStore = useAuthStore();
 
-// --- 1. UI 交互状态 ---
+// --- UI 状态 ---
 const sellerType = ref<'INDIVIDUAL' | 'BUSINESS'>('INDIVIDUAL'); 
 const isIdVerified = ref(false);       
 const isValidating = ref(false);       
 const showSuccessOverlay = ref(false); 
-// 状态对齐数据库：NONE, ACTIVE (原 APPROVED), REJECTED
 const applicationStatus = ref('NONE'); 
 
 const countries = [
@@ -27,29 +25,25 @@ const countries = [
   { code: '+81', flag: '🇯🇵' }, { code: '+86', flag: '🇨🇳' }
 ];
 
-// --- 2. 状态检查 ---
+// --- 生命周期 ---
 onMounted(async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/seller/status', {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     });
-    // 确保与数据库状态 'ACTIVE' 匹配
-    applicationStatus.value = res.data;
+    applicationStatus.value = res.data === 'ACTIVE' ? 'APPROVED' : res.data;
   } catch (err) {
     console.error("无法同步状态", err);
   }
 });
 
-// --- 3. 资料回显 ---
-const displayName = computed(() => {
-  return authStore.user?.username || authStore.user?.email?.split('@')[0] || 'User';
-});
-
+// --- 资料回显 ---
+const displayName = computed(() => authStore.user?.username || authStore.user?.email?.split('@')[0] || 'User');
 const userAvatar = computed(() => authStore.user?.avatarUrl); 
 const userInitials = computed(() => displayName.value.charAt(0).toUpperCase());
 const userRole = computed(() => authStore.user?.role || 'GUEST');
 
-// --- 4. 表单模型 ---
+// --- 表单模型 ---
 const form = reactive({
   realName: '',          
   idCardNumber: '',      
@@ -61,7 +55,7 @@ const form = reactive({
   address: ''            
 });
 
-// --- 5. 格式化与监听 ---
+// --- 格式化 ---
 const formattedID = computed({
   get: () => {
     const v = form.idCardNumber.replace(/\D/g, ''); 
@@ -72,7 +66,6 @@ const formattedID = computed({
   set: (v) => { form.idCardNumber = v.replace(/\D/g, ''); }
 });
 
-// 切换类型时清空企业专用字段
 watch(sellerType, (newType) => {
   if (newType === 'INDIVIDUAL') {
     form.tinNumber = '';
@@ -81,10 +74,10 @@ watch(sellerType, (newType) => {
   }
 });
 
-// --- 6. 核心业务逻辑 ---
+// --- 业务逻辑 ---
 const handleValidate = () => {
-  if (form.idCardNumber.length < 12) {
-    alert("请输入有效的 12 位身份证号或注册号。");
+  if (form.idCardNumber.length < 5) {
+    alert("请输入有效的证件号码或注册号。");
     return;
   }
   isValidating.value = true;
@@ -97,22 +90,16 @@ const handleValidate = () => {
 const handleSubmit = async () => {
   if (!isIdVerified.value) return;
 
-  // 1. 组装基础 Payload
   const payload: any = {
     applyType: sellerType.value,
     phoneNumber: `${form.countryCode}${form.phoneBody}`,
     address: form.address,
   };
 
-  /**
-   * 🔴 修复 400 报错的关键逻辑
-   * 后端针对 BUSINESS 期待 companyName 和 brnNumber。
-   */
   if (sellerType.value === 'INDIVIDUAL') {
     payload.realName = form.realName;
     payload.nricNumber = form.idCardNumber;
   } else {
-    // BUSINESS 模式字段映射
     payload.companyName = form.realName; 
     payload.brnNumber = form.idCardNumber; 
     payload.tinNumber = form.tinNumber;
@@ -122,9 +109,21 @@ const handleSubmit = async () => {
 
   try {
     await sellerStore.submitApplication(payload);
-    if (sellerStore.successMessage) {
+    
+    if (sellerStore.successMessage || !sellerStore.error) {
+      
+      // 🔥🔥🔥 关键修复点 🔥🔥🔥
+      // 我们不调用普通的 checkAuth()，因为那会用缓存的旧 Token (Customer)。
+      // 我们调用 refreshUserSession()，强制 AWS 签发新 Token (Seller)。
+      try {
+        await authStore.refreshUserSession();
+        console.log("✅ 权限升级成功，当前角色:", authStore.user?.role);
+      } catch (e) {
+        console.warn("自动刷新失败，请重新登录", e);
+      }
+
       showSuccessOverlay.value = true; 
-      applicationStatus.value = 'ACTIVE'; // 提交成功即设为 ACTIVE
+      applicationStatus.value = 'APPROVED'; 
     }
   } catch (err) {
     console.error("提交失败", err);
@@ -136,7 +135,7 @@ const handleSubmit = async () => {
   <div class="min-h-screen bg-[url('https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop')] bg-cover bg-center bg-fixed flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-slate-900/70 z-0"></div>
 
-    <div v-if="applicationStatus === 'ACTIVE'" 
+    <div v-if="applicationStatus === 'APPROVED'" 
          class="relative z-10 w-full max-w-4xl bg-slate-900/40 backdrop-blur-xl p-12 text-center rounded-xl border border-white/10 shadow-2xl">
        <div class="mb-8">
          <div class="wax-seal scale-125 mb-6"><span class="seal-v">V</span></div>
@@ -186,6 +185,11 @@ const handleSubmit = async () => {
               <span class="font-mono text-slate-500">{{ authStore.user?.id?.substring(0, 8) }}...</span>
             </div>
          </div>
+         
+         <div class="mt-auto p-4 bg-white/5 border-l-2 border-purple-500 text-xs italic text-slate-400 leading-relaxed text-left">
+           <span v-if="sellerType === 'INDIVIDUAL'">"Each flower carries a soul. Welcome, independent artist."</span>
+           <span v-else>"Formalizing your business builds trust and legacy."</span>
+         </div>
       </div>
 
       <div class="lg:w-2/3 p-8 lg:p-12 relative overflow-y-auto">
@@ -194,11 +198,11 @@ const handleSubmit = async () => {
         <div class="grid grid-cols-2 gap-6 mb-10 text-left">
           <div @click="sellerType = 'INDIVIDUAL'" class="cursor-pointer border p-4 rounded-lg transition-all" :class="sellerType === 'INDIVIDUAL' ? 'bg-purple-900/40 border-purple-400 shadow-lg' : 'bg-slate-800/30 border-slate-700 hover:border-slate-500'">
              <div class="flex items-center gap-3 mb-2"><span class="text-2xl">🌿</span><h3 class="text-sm uppercase tracking-widest text-white font-bold">Individual</h3></div>
-             <p class="text-[10px] text-slate-400 italic">Freelance florists. [cite_start]NRIC required. [cite: 140]</p>
+             <p class="text-[10px] text-slate-400 italic">Freelance florists. NRIC required.</p>
           </div>
           <div @click="sellerType = 'BUSINESS'" class="cursor-pointer border p-4 rounded-lg transition-all" :class="sellerType === 'BUSINESS' ? 'bg-purple-900/40 border-purple-400 shadow-lg' : 'bg-slate-800/30 border-slate-700 hover:border-slate-500'">
              <div class="flex items-center gap-3 mb-2"><span class="text-2xl">🏢</span><h3 class="text-sm uppercase tracking-widest text-white font-bold">Business</h3></div>
-             <p class="text-[10px] text-slate-400 italic">Registered entities. [cite_start]BRN & TIN required. [cite: 143]</p>
+             <p class="text-[10px] text-slate-400 italic">Registered entities. BRN & TIN required.</p>
           </div>
         </div>
 
@@ -277,6 +281,11 @@ const handleSubmit = async () => {
 
     <Transition name="fade">
       <div v-if="showSuccessOverlay" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md px-4">
+        
+        <div class="absolute inset-0 pointer-events-none overflow-hidden">
+          <div v-for="n in 8" :key="n" class="petal" :style="{ left: Math.random() * 100 + '%', animationDelay: Math.random() * 5 + 's' }"></div>
+        </div>
+
         <div class="relative w-full max-w-lg bg-[#fdfaf5] p-10 shadow-2xl rounded-sm animate-letter-slide text-slate-800 border-t-[8px] border-purple-900 font-serif">
           <div class="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]"></div>
           <div class="relative space-y-8 text-center">
@@ -284,7 +293,8 @@ const handleSubmit = async () => {
             <p class="text-sm leading-relaxed italic font-medium typewriter">
                 致管理处：<br/><br/>
                 申请人 <span class="text-purple-700 font-bold underline decoration-purple-300 decoration-wavy">{{ form.realName }}</span> 已签署契约。<br/>
-                契约已即时生效，花园之门已开启。
+                契约已即时生效，花园之门已开启。<br/>
+                愿花开之时即是相见之日。
             </p>
             <div class="flex justify-center pt-6"><div class="wax-seal animate-stamp"><span class="seal-v">V</span></div></div>
             <div class="pt-10"><button @click="showSuccessOverlay = false" class="text-[10px] uppercase tracking-[0.3em] text-slate-400 hover:text-purple-600 transition-colors">[ 关闭此函 ]</button></div>
@@ -296,13 +306,14 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
+/* 紫罗兰与火漆美学样式 */
 .wax-seal {
   width: 60px; height: 60px;
   background: radial-gradient(circle, #9b1c1c 0%, #7f1d1d 100%);
   border-radius: 50%;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 2px 5px rgba(255,255,255,0.2);
   display: flex;
-  align-items: center;      /* 已修正语法 */
+  align-items: center;      
   justify-content: center;
   position: relative;
   margin: 0 auto;
@@ -312,6 +323,8 @@ const handleSubmit = async () => {
 @keyframes stamp-drop { 0% { opacity: 0; transform: scale(3) rotate(15deg); filter: blur(4px); } 100% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); } }
 .animate-letter-slide { animation: letter-in 0.8s ease-out forwards; }
 @keyframes letter-in { from { transform: translateY(100px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.petal { position: absolute; width: 15px; height: 15px; background: #a78bfa; border-radius: 150% 0 150% 0; animation: falling 8s linear infinite; z-index: 101; }
+@keyframes falling { 0% { transform: translateY(-10vh) rotate(0); } 100% { transform: translateY(110vh) rotate(720deg); } }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .typewriter { display: block; overflow: hidden; white-space: normal; animation: typing 3s steps(50, end); }
