@@ -5,13 +5,15 @@
  * 职责：负责 UI 渲染、用户交互及即时准入逻辑。
  * ==========================================================
  */
-import axios from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../store/authStore';
 import { useSellerStore } from '../store/sellerStore';
+// ✅ 引入 Repository
+import { SellerProfileRepository } from '../../infrastructure/repositories/SellerProfileRepository';
 
 const sellerStore = useSellerStore();
 const authStore = useAuthStore();
+const profileRepo = new SellerProfileRepository(); // ✅ 实例化
 
 // --- UI 状态 ---
 const sellerType = ref<'INDIVIDUAL' | 'BUSINESS'>('INDIVIDUAL'); 
@@ -28,10 +30,11 @@ const countries = [
 // --- 生命周期 ---
 onMounted(async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/seller/status', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    });
-    applicationStatus.value = res.data === 'ACTIVE' ? 'APPROVED' : res.data;
+    // ❌ 删除旧代码: axios.get('http://localhost:8080/api/seller/status'...)
+    // ✅ 新代码:
+    const status = await profileRepo.getStatus();
+    
+    applicationStatus.value = status === 'ACTIVE' ? 'APPROVED' : status;
   } catch (err) {
     console.error("无法同步状态", err);
   }

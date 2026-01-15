@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import axios from 'axios';
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../store/authStore';
 import { useFlowerStore } from '../store/flowerStore';
+// ✅ 引入 Repository
+import { SellerFlowerRepository } from '../../infrastructure/repositories/SellerFlowerRepository';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -14,6 +15,7 @@ const showAddModal = ref(false);
 const previewImage = ref<string | null>(null);
 const selectedFile = ref<File | null>(null);
 const isLoadingInventory = ref(true); // 库存加载状态
+const repo = new SellerFlowerRepository(); // ✅ 实例化 Repo
 
 // --- 2. 数据模型 ---
 const myFlowers = ref<any[]>([]); // 存放后端返回的鲜花列表
@@ -38,20 +40,20 @@ const stats = ref([
 // --- 3. 核心业务逻辑 ---
 
 // 🔥 加载我的库存
+// 🔥 核心修改：使用 Repo 替代 axios
 const loadInventory = async () => {
   if (!authStore.token) return;
   try {
     isLoadingInventory.value = true;
-    const response = await axios.get('http://localhost:8080/api/seller/flowers', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-    });
-    myFlowers.value = response.data;
     
-    // 🔴 修复点：添加安全检查 (if stats.value[0])，消除 TypeScript 报错
+    // ❌ 删除旧代码: axios.get('http://localhost:8080...')
+    // ✅ 新代码:
+    myFlowers.value = await repo.getMyInventory();
+    
+    // 更新统计数据
     if (stats.value && stats.value[0]) {
       stats.value[0].value = myFlowers.value.length.toString();
     }
-    
   } catch (error) {
     console.error("加载库存失败", error);
   } finally {
