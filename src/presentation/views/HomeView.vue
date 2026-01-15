@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
 import FlowerCard from '../components/FlowerCard.vue';
 import HeroSection from '../components/HeroSection.vue';
 import { useFlowerStore } from '../store/flowerStore';
 
-// 1. 初始化 Store 和 Repository
+// 1. 初始化 Store
 const flowerStore = useFlowerStore();
-const flowerRepo = new HttpFlowerRepository();
+// ❌ 删除: const flowerRepo = new HttpFlowerRepository(); (Store 内部已经处理了，View 不需要管)
 
 /**
  * 核心逻辑：组件挂载后异步获取公开鲜花列表
@@ -15,10 +14,10 @@ const flowerRepo = new HttpFlowerRepository();
  */
 onMounted(async () => {
   try {
-    // 触发 Store 的异步获取行为，注入 Repository 实例
-    await flowerStore.fetchFlowers(flowerRepo);
+    // ✅ 修复 1: 不再传递参数，直接调用
+    await flowerStore.fetchFlowers();
   } catch (error) {
-    console.error("加载季节性典藏信件失败:", error);
+    console.error("加载季节性典藏花朵失败:", error);
   }
 });
 </script>
@@ -33,7 +32,7 @@ onMounted(async () => {
         <p class="mt-2 text-violet-500 font-serif italic">— Record of Observations —</p>
       </div>
 
-      <div v-if="flowerStore.loading" class="text-center py-20">
+      <div v-if="flowerStore.isLoading" class="text-center py-20">
         <div class="inline-block animate-spin text-violet-600 text-3xl">✑</div>
         <p class="mt-4 text-slate-400 font-serif text-sm">正在书写信件...</p>
       </div>

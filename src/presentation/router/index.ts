@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 // 修正路径：从 ../presentation/views 改为 ../views
 import ApplySellerView from '../views/ApplySellerView.vue'
+import FlowerDetailView from '../views/FlowerDetailView.vue'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import NotFound from '../views/NotFound.vue'
@@ -24,6 +25,14 @@ const router = createRouter({
       path: '/apply-seller',
       name: 'apply-seller',
       component: ApplySellerView,
+    },
+
+    // 🔥 新增：鲜花详情页路由
+    {
+      path: '/flowers/:id',
+      name: 'flower-detail',
+      component: FlowerDetailView,
+      props: true // 允许把 ID 当作参数传给组件
     },
 
     // 卖家仪表盘 (带权限守卫)

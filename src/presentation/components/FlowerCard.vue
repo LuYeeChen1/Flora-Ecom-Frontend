@@ -1,22 +1,42 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Flower } from '../../domain/models/Flower';
+import { useRouter } from 'vue-router';
 
+// 定义 Props (使用行内类型定义以确保通用性)
 const props = defineProps<{
-  flower: Flower
+  flower: {
+    id: string | number;
+    name: string;
+    description: string;
+    price: number;
+    imageUrl: string;
+    category?: string;
+  }
 }>();
 
-// 🛠️ 核心修复：更健壮的编号格式化逻辑
-// 无论 ID 是数字 1 还是字符串 "1"，都会被格式化为 "001"
+const router = useRouter();
+
+// 1. 编号格式化: 1 -> "001"
 const formattedId = computed(() => {
   if (!props.flower.id) return '000';
-  // 将 ID 转为字符串并补零
   return String(props.flower.id).padStart(3, '0');
 });
+
+// 2. 跳转到详情页
+const goToDetail = () => {
+  console.log("Navigating to flower id:", props.flower.id);
+  router.push({ 
+    name: 'flower-detail', 
+    params: { id: props.flower.id } 
+  });
+};
 </script>
 
 <template>
-  <div class="group relative flex flex-col items-center">
+  <div 
+    class="group relative flex flex-col items-center cursor-pointer"
+    @click="goToDetail"
+  >
     <div class="relative w-full overflow-hidden bg-[#fdfbf7] p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_60px_-15px_rgba(139,92,246,0.2)] border-4 border-double border-slate-200">
       
       <div class="absolute -right-2 -top-2 z-10 h-12 w-12 rounded-full bg-violet-800 text-white flex items-center justify-center font-serif text-xs font-bold shadow-md ring-2 ring-white transform rotate-12 group-hover:rotate-0 transition-transform">
@@ -45,10 +65,14 @@ const formattedId = computed(() => {
 
         <div class="mt-6 flex items-center justify-center gap-4">
           <span class="font-serif text-lg text-emerald-700 font-semibold">
-            ¥{{ flower.price }}
+            RM {{ flower.price }}
           </span>
-          <button class="rounded-sm border border-violet-800 px-4 py-1 text-xs font-bold uppercase tracking-widest text-violet-800 transition-colors hover:bg-violet-800 hover:text-white">
-            Collect
+          
+          <button 
+            @click.stop="goToDetail"
+            class="rounded-sm border border-violet-800 px-4 py-1 text-xs font-bold uppercase tracking-widest text-violet-800 transition-colors hover:bg-violet-800 hover:text-white"
+          >
+            View Detail
           </button>
         </div>
       </div>
