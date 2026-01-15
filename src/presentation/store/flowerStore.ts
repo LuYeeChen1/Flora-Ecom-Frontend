@@ -1,20 +1,38 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
 import { SellerFlowerRepository, type FlowerData } from '../../infrastructure/repositories/SellerFlowerRepository';
 import { useAuthStore } from './authStore';
 
 export const useFlowerStore = defineStore('flower', () => {
-  const flowerRepo = new SellerFlowerRepository();
+  const sellerRepo = new SellerFlowerRepository();
+  const publicRepo = new HttpFlowerRepository();
   const authStore = useAuthStore();
 
+  const flowers = ref<any[]>([]); // 公共列表
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
 
   /**
-   * 核心动作：上架鲜花
-   * @param file 用户选择的图片文件
-   * @param formData 表单填写的鲜花信息 (不含 imageUrl)
+   * 1. [公共] 获取所有鲜花列表
+   */
+  async function fetchFlowers() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const data = await publicRepo.getFlowers();
+      flowers.value = data;
+    } catch (err: any) {
+      console.error("Failed to fetch flowers:", err);
+      error.value = "无法加载鲜花数据";
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * 2. [卖家] 上架鲜花
    */
   async function addFlower(file: File, formData: Omit<FlowerData, 'imageUrl'>) {
     isLoading.value = true;
@@ -24,26 +42,23 @@ export const useFlowerStore = defineStore('flower', () => {
     try {
       if (!authStore.token) throw new Error("Unauthorized: Please login first.");
 
-      // Step 1: 找后端要上传链接
-      console.log('1. Requesting upload URL...');
-      const { uploadUrl, key } = await flowerRepo.getUploadUrl(
+      // Step 1: 获取链接
+      const { uploadUrl, key } = await sellerRepo.getUploadUrl(
         authStore.token, 
         file.type, 
         file.name
       );
 
-      // Step 2: 上传图片到 S3
-      console.log('2. Uploading to S3...', uploadUrl);
-      await flowerRepo.uploadToS3(uploadUrl, file);
+      // Step 2: 上传 S3
+      await sellerRepo.uploadToS3(uploadUrl, file);
 
-      // Step 3: 保存数据到后端
-      console.log('3. Saving metadata to Backend...');
+      // Step 3: 保存数据
       const flowerData: FlowerData = {
         ...formData,
-        imageUrl: key // 关键：存入数据库的是 S3 Key (不是完整的 URL)
+        imageUrl: key 
       };
       
-      await flowerRepo.createFlower(authStore.token, flowerData);
+      await sellerRepo.createFlower(authStore.token, flowerData);
       
       successMessage.value = "Flower listed successfully!";
       return true;
@@ -58,9 +73,11 @@ export const useFlowerStore = defineStore('flower', () => {
   }
 
   return {
+    flowers,
     isLoading,
     error,
     successMessage,
+    fetchFlowers,
     addFlower
   };
 });

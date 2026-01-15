@@ -10,10 +10,7 @@ export interface FlowerData {
   imageUrl: string; // 这里存的是 S3 Key
 }
 
-// 🔴 修改前: export class FlowerRepository {
-// 🟢 修改后: 这里的类名必须和文件名、以及 Store 里引用的名字一致
 export class SellerFlowerRepository {
-  // 定义后端基础路径 (根据你的 Spring Boot 端口)
   private baseUrl = 'http://localhost:8080/api/seller/flowers';
 
   /**
