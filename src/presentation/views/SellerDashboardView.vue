@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import axios from 'axios';
+import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../store/authStore';
 import { useFlowerStore } from '../store/flowerStore';
@@ -8,55 +9,82 @@ const router = useRouter();
 const authStore = useAuthStore();
 const flowerStore = useFlowerStore();
 
-// --- UI 状态 ---
+// --- 1. UI 状态管理 ---
 const showAddModal = ref(false);
 const previewImage = ref<string | null>(null);
 const selectedFile = ref<File | null>(null);
+const isLoadingInventory = ref(true); // 库存加载状态
 
-// --- 表单模型 ---
+// --- 2. 数据模型 ---
+const myFlowers = ref<any[]>([]); // 存放后端返回的鲜花列表
+
+// 表单数据
 const form = reactive({
   name: '',
   description: '',
   price: 0,
   stock: 1,
-  category: 'ROMANCE' // 默认值
+  category: 'ROMANCE'
 });
 
-// 模拟 Dashboard 数据
+// 模拟的统计数据
 const stats = ref([
-  { title: 'Total Flowers', value: '12', icon: '🌸', color: 'bg-purple-100 text-purple-600' },
-  { title: 'Pending Orders', value: '5', icon: '📦', color: 'bg-blue-100 text-blue-600' },
-  { title: 'Revenue', value: 'RM 1,280', icon: '💰', color: 'bg-green-100 text-green-600' },
-  { title: 'Rating', value: '4.9', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
+  { title: 'Total Flowers', value: '0', icon: '🌸', color: 'bg-purple-100 text-purple-600' },
+  { title: 'Pending Orders', value: '0', icon: '📦', color: 'bg-blue-100 text-blue-600' },
+  { title: 'Revenue', value: 'RM 0', icon: '💰', color: 'bg-green-100 text-green-600' },
+  { title: 'Rating', value: '5.0', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
 ]);
 
-// --- 方法 ---
+// --- 3. 核心业务逻辑 ---
 
-// 1. 处理文件选择 & 生成预览
+// 🔥 加载我的库存
+const loadInventory = async () => {
+  if (!authStore.token) return;
+  try {
+    isLoadingInventory.value = true;
+    const response = await axios.get('http://localhost:8080/api/seller/flowers', {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+    });
+    myFlowers.value = response.data;
+    
+    // 🔴 修复点：添加安全检查 (if stats.value[0])，消除 TypeScript 报错
+    if (stats.value && stats.value[0]) {
+      stats.value[0].value = myFlowers.value.length.toString();
+    }
+    
+  } catch (error) {
+    console.error("加载库存失败", error);
+  } finally {
+    isLoadingInventory.value = false;
+  }
+};
+
+// 页面加载时执行
+onMounted(() => {
+  loadInventory();
+});
+
+// 处理文件选择预览
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
     const file = target.files[0];
-    
-    // 简单校验：最大 5MB
     if (file.size > 5 * 1024 * 1024) {
       alert("文件过大 (Max 5MB)");
       return;
     }
     selectedFile.value = file;
-    // 生成本地预览 URL (不用上传就能看)
     previewImage.value = URL.createObjectURL(file);
   }
 };
 
-// 2. 提交表单
+// 提交上架表单
 const handleSubmit = async () => {
   if (!selectedFile.value) {
     alert("请选择一张鲜花图片");
     return;
   }
 
-  // 调用 Store 执行 "三步走" 上传
   const success = await flowerStore.addFlower(selectedFile.value, {
     name: form.name,
     description: form.description,
@@ -66,11 +94,15 @@ const handleSubmit = async () => {
   });
 
   if (success) {
-    // 成功后重置表单并关闭弹窗
+    // 1. 关闭弹窗并重置表单
     showAddModal.value = false;
     selectedFile.value = null;
     previewImage.value = null;
     form.name = ''; form.description = ''; form.price = 0;
+    
+    // 2. 自动刷新列表
+    await loadInventory();
+    
     alert("✅ 鲜花上架成功！");
   } else {
     alert("❌ 上架失败: " + flowerStore.error);
@@ -120,24 +152,67 @@ const handleSubmit = async () => {
           </div>
         </div>
       </div>
+
+      <div class="mt-10">
+        <div class="flex items-center justify-between mb-6">
+           <h3 class="text-xl font-bold text-slate-800">我的花园库存</h3>
+           <button @click="loadInventory" class="text-sm text-purple-600 hover:text-purple-800">↻ Refresh</button>
+        </div>
+        
+        <div v-if="isLoadingInventory" class="text-center py-20">
+          <div class="animate-spin text-3xl mb-2">🌸</div>
+          <p class="text-slate-500">正在整理花圃...</p>
+        </div>
+        
+        <div v-else-if="myFlowers.length === 0" class="text-center py-16 bg-white rounded-xl border border-dashed border-slate-300">
+           <div class="text-4xl mb-4 opacity-50">🥀</div>
+           <p class="text-slate-500">您还没有上传任何鲜花。</p>
+           <button @click="showAddModal = true" class="mt-4 text-purple-600 font-medium hover:underline">立即上架第一朵花</button>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           <div v-for="flower in myFlowers" :key="flower.id" class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-all group relative">
+              
+              <div class="h-56 overflow-hidden bg-slate-100 relative">
+                <img :src="flower.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+              </div>
+
+              <div class="p-5">
+                <div class="flex justify-between items-start mb-2">
+                   <h4 class="font-bold text-slate-800 text-lg truncate pr-2">{{ flower.name }}</h4>
+                   <span class="shrink-0 bg-purple-50 text-purple-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-purple-100">
+                     {{ flower.category }}
+                   </span>
+                </div>
+                <p class="text-slate-500 text-sm mb-4 line-clamp-2 min-h-[40px]">{{ flower.description }}</p>
+                <div class="flex justify-between items-center border-t border-slate-50 pt-4 mt-2">
+                   <div class="flex flex-col">
+                     <span class="text-xs text-slate-400 uppercase">Price</span>
+                     <span class="text-emerald-600 font-bold font-sans">RM {{ flower.price }}</span>
+                   </div>
+                   <div class="flex flex-col items-end">
+                     <span class="text-xs text-slate-400 uppercase">Stock</span>
+                     <span class="text-slate-700 font-medium font-sans">{{ flower.stock }}</span>
+                   </div>
+                </div>
+              </div>
+           </div>
+        </div>
+      </div>
+
     </main>
 
     <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        
         <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
           <h3 class="text-xl font-bold text-slate-800">Add New Flower</h3>
           <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
-
         <form @submit.prevent="handleSubmit" class="p-8 space-y-6">
-          
           <div class="flex justify-center">
             <div class="relative w-full h-64 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer overflow-hidden">
               <input type="file" @change="handleFileChange" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" />
-              
               <img v-if="previewImage" :src="previewImage" class="absolute inset-0 w-full h-full object-cover" />
-              
               <div v-else class="text-center p-4">
                 <div class="text-4xl mb-2">📷</div>
                 <p class="text-sm text-slate-500 font-medium">Click or Drag to upload flower image</p>
@@ -145,23 +220,19 @@ const handleSubmit = async () => {
               </div>
             </div>
           </div>
-
           <div class="grid grid-cols-2 gap-6">
             <div class="col-span-2">
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Flower Name</label>
               <input v-model="form.name" required type="text" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none transition-colors" placeholder="e.g. Red Rose Bouquet" />
             </div>
-            
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Price (RM)</label>
               <input v-model="form.price" required type="number" min="0.01" step="0.01" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none" />
             </div>
-
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Stock Qty</label>
               <input v-model="form.stock" required type="number" min="1" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none" />
             </div>
-
             <div class="col-span-2">
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Category</label>
               <select v-model="form.category" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none bg-white">
@@ -171,13 +242,11 @@ const handleSubmit = async () => {
                 <option value="SYMPATHY">Sympathy</option>
               </select>
             </div>
-
             <div class="col-span-2">
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Description</label>
               <textarea v-model="form.description" required rows="3" class="w-full border border-slate-300 rounded p-3 text-sm focus:border-purple-500 outline-none" placeholder="Tell the story of this flower..."></textarea>
             </div>
           </div>
-
           <div class="pt-4 flex justify-end gap-4">
             <button type="button" @click="showAddModal = false" class="px-6 py-2 text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
             <button type="submit" :disabled="flowerStore.isLoading" class="px-8 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50">
@@ -187,6 +256,5 @@ const handleSubmit = async () => {
         </form>
       </div>
     </div>
-
   </div>
 </template>
