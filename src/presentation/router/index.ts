@@ -1,11 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import LoginView from '../views/LoginView.vue'
-import NotFound from '../views/NotFound.vue'
-import ProfileView from '../views/ProfileView.vue'
-import RegisterSuccessView from '../views/RegisterSuccessView.vue'
-// 1. 引入申请页面
-import ApplySellerView from '../views/ApplySellerView.vue'
+import ApplySellerView from '../presentation/views/ApplySellerView.vue'
+import HomeView from '../presentation/views/HomeView.vue'
+import LoginView from '../presentation/views/LoginView.vue'
+import NotFound from '../presentation/views/NotFound.vue'
+import ProfileView from '../presentation/views/ProfileView.vue'
+import RegisterSuccessView from '../presentation/views/RegisterSuccessView.vue'
+// 1. 引入新的卖家仪表盘页面
+import SellerDashboardView from '../presentation/views/SellerDashboardView.vue'
+import { useAuthStore } from '../store/authStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,12 +17,35 @@ const router = createRouter({
     { path: '/profile', name: 'profile', component: ProfileView },
     { path: '/register-success', name: 'register-success', component: RegisterSuccessView },
     
-    // 2. 添加卖家申请路由
+    // 卖家申请路由
     {
       path: '/apply-seller',
       name: 'apply-seller',
       component: ApplySellerView,
-      // 建议添加 meta: { requiresAuth: true } 配合路由守卫使用
+    },
+
+    // 🔥 2. 新增：卖家仪表盘路由 (带权限守卫)
+    {
+      path: '/seller/dashboard',
+      name: 'seller-dashboard',
+      component: SellerDashboardView,
+      beforeEnter: async (to, from, next) => {
+        const authStore = useAuthStore();
+        
+        // 简单等待 Auth 加载 (防止刷新页面 user 为 null)
+        if (authStore.isLoading) {
+           // 实际项目中可以加个 await until(authStore.isLoading === false)
+        }
+
+        // 权限检查：只有 SELLER 或 ADMIN 能进
+        if (authStore.user?.role === 'SELLER' || authStore.user?.role === 'ADMIN') {
+          next(); // 放行
+        } else {
+          // 权限不足，踢回个人中心
+          alert("Access Denied: Merchant Zone Only.");
+          next('/profile'); 
+        }
+      }
     },
 
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound },

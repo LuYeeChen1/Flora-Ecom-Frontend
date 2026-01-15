@@ -13,12 +13,6 @@ const stats = ref([
   { title: 'Total Revenue', value: 'RM 1,280', icon: '💰', color: 'bg-green-100 text-green-600' },
   { title: 'Rating', value: '4.9', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
 ]);
-
-// 简单的登出逻辑
-const handleLogout = async () => {
-  await authStore.logout();
-  router.push('/login');
-};
 </script>
 
 <template>

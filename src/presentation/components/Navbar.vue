@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { useAuthStore } from '../store/authStore'; // 确保路径正确
+import { useAuthStore } from '../store/authStore';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -50,7 +50,7 @@ const handleLogout = async () => {
               </span>
               
               <span class="text-sm font-medium text-violet-100 max-w-[150px] truncate">
-                {{ authStore.user.email }}
+                {{ authStore.user.username || authStore.user.email.split('@')[0] }}
               </span>
 
               <svg :class="{'rotate-180': isProfileOpen}" class="h-4 w-4 text-violet-300 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,12 +65,23 @@ const handleLogout = async () => {
               <div class="px-4 py-3 border-b border-white/5 bg-white/5">
                 <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Signed in as</p>
                 <p class="text-sm font-bold text-white truncate mt-1">{{ authStore.user.email }}</p>
+                <span class="inline-flex mt-2 items-center px-2 py-0.5 rounded text-[10px] font-medium bg-violet-900/50 text-violet-200 border border-violet-700/50">
+                   {{ authStore.user.role }}
+                </span>
               </div>
               
               <div class="py-1">
-                 <RouterLink to="/profile" class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors">
-                  <svg class="mr-3 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                  个人中心
+                 <RouterLink to="/profile" @click="isProfileOpen = false" class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors">
+                  <span class="mr-3">👤</span> 个人中心
+                </RouterLink>
+                
+                <RouterLink 
+                  v-if="authStore.user.role === 'SELLER'" 
+                  to="/seller/dashboard" 
+                  @click="isProfileOpen = false"
+                  class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors"
+                >
+                  <span class="mr-3">📊</span> 卖家后台
                 </RouterLink>
               </div>
               

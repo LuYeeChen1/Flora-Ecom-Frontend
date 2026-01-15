@@ -6,27 +6,19 @@ import { useAuthStore } from '../store/authStore';
 const authStore = useAuthStore();
 const router = useRouter();
 
-// 计算属性：获取显示名称 (优先显示用户名，没有则显示邮箱前缀)
 const displayName = computed(() => {
   return authStore.user?.username || authStore.user?.email?.split('@')[0] || 'User';
 });
 
-// 计算属性：获取首字母用于头像
 const initial = computed(() => {
   return displayName.value.charAt(0).toUpperCase();
 });
 
-// 如果用户未登录，强制跳回登录页
 onMounted(() => {
   if (!authStore.user && !authStore.isLoading) {
     router.push('/login');
   }
 });
-
-const handleLogout = async () => {
-  await authStore.logout();
-  router.push('/login');
-};
 </script>
 
 <template>
@@ -73,41 +65,28 @@ const handleLogout = async () => {
 
           <div class="mt-8 border-t border-slate-100 pt-8">
             <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
-              
               <div class="sm:col-span-1">
                 <dt class="text-sm font-medium text-slate-500">Username</dt>
-                <dd class="mt-1 text-sm text-slate-900 font-medium break-all">
-                  {{ authStore.user?.username || 'Not set' }}
-                </dd>
+                <dd class="mt-1 text-sm text-slate-900 font-medium break-all">{{ authStore.user?.username || 'Not set' }}</dd>
               </div>
-
               <div class="sm:col-span-1">
                 <dt class="text-sm font-medium text-slate-500">Email Address</dt>
-                <dd class="mt-1 text-sm text-slate-900 break-all">
-                  {{ authStore.user?.email }}
-                </dd>
+                <dd class="mt-1 text-sm text-slate-900 break-all">{{ authStore.user?.email }}</dd>
               </div>
-
               <div class="sm:col-span-2">
                 <dt class="text-sm font-medium text-slate-500">User ID (System Identifier)</dt>
-                <dd class="mt-1 text-xs text-slate-400 font-mono break-all bg-slate-50 p-2 rounded border border-slate-100">
-                  {{ authStore.user?.id }}
-                </dd>
+                <dd class="mt-1 text-xs text-slate-400 font-mono break-all bg-slate-50 p-2 rounded border border-slate-100">{{ authStore.user?.id }}</dd>
               </div>
-
               <div class="sm:col-span-1">
                 <dt class="text-sm font-medium text-slate-500">Account Status</dt>
-                <dd class="mt-1">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Active
-                  </span>
-                </dd>
+                <dd class="mt-1"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span></dd>
               </div>
             </dl>
           </div>
 
           <div class="mt-10 flex gap-4 justify-center sm:justify-start">
-          <button 
+            
+            <button 
               v-if="authStore.user?.role === 'CUSTOMER'"
               @click="router.push('/apply-seller')" 
               class="px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-lg shadow-violet-200"
@@ -116,18 +95,11 @@ const handleLogout = async () => {
             </button>
             
             <button 
-              v-else
-              class="px-4 py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded-lg cursor-not-allowed"
-              disabled
+              v-else-if="authStore.user?.role === 'SELLER'"
+              @click="router.push('/seller/dashboard')" 
+              class="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
             >
-              Edit Profile (Coming Soon)
-            </button>
-
-            <button 
-              @click="handleLogout"
-              class="px-4 py-2 bg-white text-red-500 border border-red-200 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors"
-            >
-              Sign Out
+              Enter Seller Dashboard →
             </button>
           </div>
 
