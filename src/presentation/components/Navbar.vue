@@ -46,7 +46,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="hidden md:block relative flex items-center gap-8">
+        <div class="hidden md:flex relative items-center gap-8">
           
           <RouterLink 
             v-if="authStore.user" 
@@ -134,6 +134,5 @@ onMounted(() => {
         </div>
       </div>
     </div>
-
-    </nav>
+  </nav>
 </template>
