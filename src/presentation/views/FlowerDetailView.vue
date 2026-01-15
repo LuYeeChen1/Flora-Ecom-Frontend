@@ -2,22 +2,21 @@
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
-import Navbar from '../components/Navbar.vue'; // 确保你有这个组件，如果没有可以删掉这行
+import Navbar from '../components/Navbar.vue';
+import { useCartStore } from '../store/cartStore'; // ✅ 1. 引入 CartStore
 
 const route = useRoute();
 const repo = new HttpFlowerRepository();
+const cartStore = useCartStore(); // ✅ 2. 初始化 Store
 
 const flower = ref<any>(null);
 const loading = ref(true);
 const error = ref(null);
+const isAdding = ref(false); // 本地添加状态 (用于按钮反馈)
 
 onMounted(async () => {
   try {
-    // 从路由中获取 ID (比如 /flowers/1 -> id=1)
     const flowerId = route.params.id as string;
-    
-    // 调用 API 获取详情
-    // 注意：HttpFlowerRepository 需要有 getFlowerById 方法
     flower.value = await repo.getFlowerById(flowerId);
   } catch (err: any) {
     error.value = err;
@@ -25,6 +24,17 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+// ✅ 3. 处理添加购物车点击
+const handleAddToCart = async () => {
+  if (!flower.value) return;
+  
+  isAdding.value = true;
+  // 调用 Store 添加商品 (Store 内部会自动刷新列表并打开侧边栏)
+  const success = await cartStore.addItem(flower.value.id, 1);
+  
+  isAdding.value = false;
+};
 </script>
 
 <template>
@@ -87,8 +97,13 @@ onMounted(async () => {
            </div>
 
            <div class="mt-8 flex gap-4 font-sans">
-             <button class="flex-1 bg-slate-900 text-white py-4 rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200 font-bold tracking-wide">
-               ADD TO CART
+             <button 
+               @click="handleAddToCart"
+               :disabled="isAdding || cartStore.isLoading"
+               class="flex-1 bg-slate-900 text-white py-4 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 font-bold tracking-wide disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+             >
+               <span v-if="isAdding" class="animate-spin text-white">❄️</span>
+               <span>{{ isAdding ? 'ADDING...' : 'ADD TO CART' }}</span>
              </button>
            </div>
         </div>
