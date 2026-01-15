@@ -2,11 +2,10 @@
 import { onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '../store/authStore';
-import { useCartStore } from '../store/cartStore'; // ✅ 引入 CartStore
-import CartDrawer from './CartDrawer.vue'; // ✅ 引入购物车组件
+import { useCartStore } from '../store/cartStore';
 
 const authStore = useAuthStore();
-const cartStore = useCartStore(); // ✅ 初始化
+const cartStore = useCartStore();
 const router = useRouter();
 
 const isProfileOpen = ref(false);
@@ -17,7 +16,7 @@ const handleLogout = async () => {
   router.push('/login');
 };
 
-// ✅ 挂载时拉取购物车数据 (保持数据最新)
+// 挂载时拉取购物车数据，确保角标数字准确
 onMounted(() => {
   if (authStore.user) {
     cartStore.fetchCart();
@@ -47,11 +46,11 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="hidden md:block relative flex items-center gap-6">
+        <div class="hidden md:block relative flex items-center gap-8">
           
-          <button 
+          <RouterLink 
             v-if="authStore.user" 
-            @click="cartStore.toggleCart"
+            to="/cart" 
             class="group relative p-2 text-slate-300 hover:text-white transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
@@ -64,7 +63,7 @@ onMounted(() => {
             >
               {{ cartStore.totalItems }}
             </span>
-          </button>
+          </RouterLink>
 
           <div v-if="authStore.user" class="relative">
             <button 
@@ -136,6 +135,5 @@ onMounted(() => {
       </div>
     </div>
 
-    <CartDrawer />
-  </nav>
+    </nav>
 </template>

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 // 修正路径：从 ../presentation/views 改为 ../views
 import ApplySellerView from '../views/ApplySellerView.vue'
+import CartView from '../views/CartView.vue'
 import FlowerDetailView from '../views/FlowerDetailView.vue'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -33,6 +34,13 @@ const router = createRouter({
       name: 'flower-detail',
       component: FlowerDetailView,
       props: true // 允许把 ID 当作参数传给组件
+    },
+
+    {
+      path: '/cart',
+      name: 'cart',
+      component: CartView,
+      meta: { requiresAuth: true } // 购物车通常需要登录
     },
 
     // 卖家仪表盘 (带权限守卫)
