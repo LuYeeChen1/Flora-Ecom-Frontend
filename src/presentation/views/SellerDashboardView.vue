@@ -1,18 +1,81 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../store/authStore';
+import { useFlowerStore } from '../store/flowerStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const flowerStore = useFlowerStore();
 
-// 模拟数据 (后续会对接真实 API)
+// --- UI 状态 ---
+const showAddModal = ref(false);
+const previewImage = ref<string | null>(null);
+const selectedFile = ref<File | null>(null);
+
+// --- 表单模型 ---
+const form = reactive({
+  name: '',
+  description: '',
+  price: 0,
+  stock: 1,
+  category: 'ROMANCE' // 默认值
+});
+
+// 模拟 Dashboard 数据
 const stats = ref([
   { title: 'Total Flowers', value: '12', icon: '🌸', color: 'bg-purple-100 text-purple-600' },
   { title: 'Pending Orders', value: '5', icon: '📦', color: 'bg-blue-100 text-blue-600' },
-  { title: 'Total Revenue', value: 'RM 1,280', icon: '💰', color: 'bg-green-100 text-green-600' },
+  { title: 'Revenue', value: 'RM 1,280', icon: '💰', color: 'bg-green-100 text-green-600' },
   { title: 'Rating', value: '4.9', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
 ]);
+
+// --- 方法 ---
+
+// 1. 处理文件选择 & 生成预览
+const handleFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+    
+    // 简单校验：最大 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert("文件过大 (Max 5MB)");
+      return;
+    }
+    selectedFile.value = file;
+    // 生成本地预览 URL (不用上传就能看)
+    previewImage.value = URL.createObjectURL(file);
+  }
+};
+
+// 2. 提交表单
+const handleSubmit = async () => {
+  if (!selectedFile.value) {
+    alert("请选择一张鲜花图片");
+    return;
+  }
+
+  // 调用 Store 执行 "三步走" 上传
+  const success = await flowerStore.addFlower(selectedFile.value, {
+    name: form.name,
+    description: form.description,
+    price: form.price,
+    stock: form.stock,
+    category: form.category
+  });
+
+  if (success) {
+    // 成功后重置表单并关闭弹窗
+    showAddModal.value = false;
+    selectedFile.value = null;
+    previewImage.value = null;
+    form.name = ''; form.description = ''; form.price = 0;
+    alert("✅ 鲜花上架成功！");
+  } else {
+    alert("❌ 上架失败: " + flowerStore.error);
+  }
+};
 </script>
 
 <template>
@@ -23,22 +86,11 @@ const stats = ref([
         <h1 class="text-2xl text-white font-italic tracking-widest">FlowerShop</h1>
         <p class="text-xs text-purple-400 mt-2 uppercase tracking-wider">Merchant Center</p>
       </div>
-
       <nav class="flex-1 p-4 space-y-2">
-        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-purple-600/20 text-purple-300 rounded-lg border border-purple-500/30 transition-all">
+        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-purple-600/20 text-purple-300 rounded-lg border border-purple-500/30">
           <span>📊</span> Dashboard
         </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 hover:text-white rounded-lg transition-all opacity-50 cursor-not-allowed" title="Coming Soon">
-          <span>🌹</span> My Flowers
-        </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 hover:text-white rounded-lg transition-all opacity-50 cursor-not-allowed" title="Coming Soon">
-          <span>🧾</span> Orders
-        </a>
-        <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 hover:text-white rounded-lg transition-all opacity-50 cursor-not-allowed" title="Coming Soon">
-          <span>⚙️</span> Settings
-        </a>
       </nav>
-
       <div class="p-4 border-t border-slate-800">
         <button @click="router.push('/profile')" class="flex items-center gap-3 px-4 py-3 w-full hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-all text-sm">
           <span>←</span> Back to Profile
@@ -49,40 +101,92 @@ const stats = ref([
     <main class="flex-1 ml-64 p-8">
       <header class="flex justify-between items-center mb-10">
         <div>
-          <h2 class="text-3xl text-slate-800">Welcome back, {{ authStore.user?.username || 'Florist' }}</h2>
-          <p class="text-slate-500 mt-1 italic">"May your garden bloom with prosperity today."</p>
+          <h2 class="text-3xl text-slate-800">Dashboard</h2>
+          <p class="text-slate-500 mt-1">Manage your inventory and orders.</p>
         </div>
-        <div class="flex items-center gap-4">
-           <div class="w-10 h-10 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 font-bold">
-             {{ authStore.user?.username?.charAt(0).toUpperCase() }}
-           </div>
-        </div>
+        <button @click="showAddModal = true" class="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200/50">
+          + Add New Flower
+        </button>
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div v-for="stat in stats" :key="stat.title" class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+        <div v-for="stat in stats" :key="stat.title" class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
           <div class="flex justify-between items-start">
             <div>
               <p class="text-sm text-slate-500 uppercase tracking-wider font-sans">{{ stat.title }}</p>
               <h3 class="text-2xl font-bold text-slate-800 mt-2 font-sans">{{ stat.value }}</h3>
             </div>
-            <div :class="`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color}`">
-              {{ stat.icon }}
-            </div>
+            <div :class="`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color}`">{{ stat.icon }}</div>
           </div>
         </div>
       </div>
-
-      <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-8 text-center py-20">
-        <div class="text-4xl mb-4">🌻</div>
-        <h3 class="text-lg text-slate-800 font-medium">Your garden is ready</h3>
-        <p class="text-slate-500 mt-2 max-w-md mx-auto">
-          You are now a verified seller. Start by listing your first flower arrangement to the global marketplace.
-        </p>
-        <button class="mt-6 px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200/50 cursor-not-allowed opacity-70">
-          + Add New Flower (Coming Next)
-        </button>
-      </div>
     </main>
+
+    <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+          <h3 class="text-xl font-bold text-slate-800">Add New Flower</h3>
+          <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form @submit.prevent="handleSubmit" class="p-8 space-y-6">
+          
+          <div class="flex justify-center">
+            <div class="relative w-full h-64 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer overflow-hidden">
+              <input type="file" @change="handleFileChange" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" />
+              
+              <img v-if="previewImage" :src="previewImage" class="absolute inset-0 w-full h-full object-cover" />
+              
+              <div v-else class="text-center p-4">
+                <div class="text-4xl mb-2">📷</div>
+                <p class="text-sm text-slate-500 font-medium">Click or Drag to upload flower image</p>
+                <p class="text-xs text-slate-400 mt-1">Supports JPG, PNG (Max 5MB)</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <div class="col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Flower Name</label>
+              <input v-model="form.name" required type="text" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none transition-colors" placeholder="e.g. Red Rose Bouquet" />
+            </div>
+            
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Price (RM)</label>
+              <input v-model="form.price" required type="number" min="0.01" step="0.01" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Stock Qty</label>
+              <input v-model="form.stock" required type="number" min="1" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none" />
+            </div>
+
+            <div class="col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Category</label>
+              <select v-model="form.category" class="w-full border-b border-slate-300 py-2 focus:border-purple-500 outline-none bg-white">
+                <option value="ROMANCE">Romance & Love</option>
+                <option value="WEDDING">Wedding</option>
+                <option value="BIRTHDAY">Birthday</option>
+                <option value="SYMPATHY">Sympathy</option>
+              </select>
+            </div>
+
+            <div class="col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Description</label>
+              <textarea v-model="form.description" required rows="3" class="w-full border border-slate-300 rounded p-3 text-sm focus:border-purple-500 outline-none" placeholder="Tell the story of this flower..."></textarea>
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-4">
+            <button type="button" @click="showAddModal = false" class="px-6 py-2 text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+            <button type="submit" :disabled="flowerStore.isLoading" class="px-8 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50">
+               {{ flowerStore.isLoading ? 'Uploading...' : 'Publish Item' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 </template>

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// ✅ 修正路径：从 ../presentation/views 改为 ../views
+// 修正路径：从 ../presentation/views 改为 ../views
 import ApplySellerView from '../views/ApplySellerView.vue'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -8,7 +8,7 @@ import ProfileView from '../views/ProfileView.vue'
 import RegisterSuccessView from '../views/RegisterSuccessView.vue'
 import SellerDashboardView from '../views/SellerDashboardView.vue'
 
-// ✅ 修正路径：从 ../presentation/store 改为 ../store
+// 修正路径：从 ../presentation/store 改为 ../store
 import { useAuthStore } from '../store/authStore'
 
 const router = createRouter({
