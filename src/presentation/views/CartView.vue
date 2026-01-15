@@ -3,9 +3,12 @@ import { onMounted } from 'vue';
 import { useCartStore } from '../store/cartStore';
 
 const cartStore = useCartStore();
+
+// 格式化价格显示
 const formatPrice = (val: number) => val.toFixed(2);
 
 onMounted(() => {
+  // 页面挂载时获取最新的购物车数据
   cartStore.fetchCart();
 });
 </script>
@@ -13,9 +16,14 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-slate-50 font-serif">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 class="text-3xl font-bold text-slate-900 mb-8 font-serif">Shopping Cart</h1>
+      <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 font-serif">Shopping Cart</h1>
+        <router-link to="/" class="text-sm text-violet-600 hover:underline font-sans">
+          &larr; Back to Shop
+        </router-link>
+      </div>
 
-      <div v-if="cartStore.isLoading" class="flex justify-center py-20">
+      <div v-if="cartStore.isLoading && cartStore.items.length === 0" class="flex justify-center py-20">
         <div class="animate-spin text-3xl text-violet-600">❄️</div>
       </div>
 
@@ -50,15 +58,27 @@ onMounted(() => {
                   </div>
 
                   <div class="mt-4 sm:mt-0 sm:pr-9">
-                    <label :for="`quantity-${item.id}`" class="sr-only">Quantity</label>
-                    <div class="flex items-center border border-slate-300 rounded-md w-24">
-                       <span class="pl-3 text-slate-500 text-xs">Qty</span>
-                       <input 
-                         type="number" 
-                         :value="item.quantity" 
-                         readonly
-                         class="block w-full border-0 py-1.5 pl-2 text-slate-900 sm:text-sm bg-transparent focus:ring-0"
-                       />
+                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden w-fit bg-slate-50">
+                      <button 
+                        @click="cartStore.changeQuantity(item.id, item.quantity, -1)"
+                        class="px-3 py-1 hover:bg-slate-200 text-slate-600 transition-colors border-r border-slate-200"
+                      >
+                        <span class="text-lg">−</span>
+                      </button>
+
+                      <input 
+                        type="number" 
+                        :value="item.quantity" 
+                        readonly
+                        class="w-12 text-center border-0 bg-transparent py-1 text-sm font-bold text-slate-900 focus:ring-0"
+                      />
+
+                      <button 
+                        @click="cartStore.changeQuantity(item.id, item.quantity, 1)"
+                        class="px-3 py-1 hover:bg-slate-200 text-slate-600 transition-colors border-l border-slate-200"
+                      >
+                        <span class="text-lg">+</span>
+                      </button>
                     </div>
 
                     <div class="absolute top-0 right-0">

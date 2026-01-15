@@ -47,6 +47,15 @@ export class CartRepository {
     return response.data;
   }
 
+    // src/infrastructure/repositories/CartRepository.ts
+  async updateQuantity(cartId: number, quantity: number) {
+    const response = await apiClient.patch(`/cart/${cartId}`, 
+      { quantity }, 
+      { headers: this.getHeaders() }
+    );
+    return response.data;
+  }
+
   // 3. 移除商品
   async removeFromCart(cartId: number) {
     await apiClient.delete(`/cart/${cartId}`, {

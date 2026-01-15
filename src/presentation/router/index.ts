@@ -28,7 +28,7 @@ const router = createRouter({
       component: ApplySellerView,
     },
 
-    // 🔥 新增：鲜花详情页路由
+    // 新增：鲜花详情页路由
     {
       path: '/flowers/:id',
       name: 'flower-detail',
