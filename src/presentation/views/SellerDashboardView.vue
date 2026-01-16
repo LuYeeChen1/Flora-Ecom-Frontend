@@ -303,8 +303,8 @@ const handleShipOrder = async (orderId: number) => {
                      <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                        <span>📧</span> Contact Info
                      </h4>
-                     <div class="text-sm text-slate-700 font-medium">{{ order.buyerEmail }}</div>
-                     <div class="text-sm text-slate-500 mt-1">{{ order.buyerPhone }}</div>
+                     <div class="text-sm text-slate-700 font-medium">email: {{ order.buyerEmail }}</div>
+                     <div class="text-sm text-slate-500 mt-1">phone: {{ order.buyerPhone }}</div>
                    </div>
 
                    <div>

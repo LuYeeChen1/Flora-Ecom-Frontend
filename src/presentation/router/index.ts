@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import AddressBookView from '../views/AddressBookView.vue'
 import ApplySellerView from '../views/ApplySellerView.vue'
 import CartView from '../views/CartView.vue'
 import FlowerDetailView from '../views/FlowerDetailView.vue'
@@ -44,11 +45,18 @@ const router = createRouter({
       meta: { requiresAuth: true } 
     },
 
-    // ✅ 2. 注册订单列表路由 (需要登录)
+    // 注册订单列表路由 (需要登录)
     {
       path: '/orders',
       name: 'orders',
       component: OrderListView,
+      meta: { requiresAuth: true }
+    },
+
+    {
+      path: '/address-book',
+      name: 'address-book',
+      component: AddressBookView,
       meta: { requiresAuth: true }
     },
 

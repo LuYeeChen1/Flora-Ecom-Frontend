@@ -1,49 +1,72 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { AddressRepository, type Address } from '../../infrastructure/repositories/AddressRepository';
 import { OrderRepository } from '../../infrastructure/repositories/OrderRepository';
 import { useCartStore } from '../store/cartStore';
 
 const cartStore = useCartStore();
 const router = useRouter();
 const orderRepo = new OrderRepository();
+const addressRepo = new AddressRepository();
 const formatPrice = (val: number) => val.toFixed(2);
 
-// ✅ 1. 改为手动填写表单，移除 AddressSelector
-const form = ref({
-  name: '',
-  phone: '',
-  address: ''
-});
-
+// 状态
+const savedAddresses = ref<Address[]>([]);
+const selectedAddressId = ref<number | null>(null);
 const isCheckingOut = ref(false);
+const isLoadingAddresses = ref(true);
 
-onMounted(() => {
+// 加载购物车和地址
+onMounted(async () => {
   cartStore.fetchCart();
+  try {
+    savedAddresses.value = await addressRepo.getMyAddresses();
+    
+    // ✅ 修复：安全地设置默认选中项
+    if (savedAddresses.value.length > 0) {
+      // 1. 优先找默认地址
+      const defaultAddr = savedAddresses.value.find(a => a.default);
+      // 2. 如果没有默认，就选第一个 (后端已经按 is_default 排序，所以第一个通常就是最优解)
+      const targetAddr = defaultAddr || savedAddresses.value[0];
+      
+      // 3. 安全赋值，避免 TypeScript 报错 "Object is possibly undefined"
+      if (targetAddr && targetAddr.id !== undefined) {
+        selectedAddressId.value = targetAddr.id;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load addresses");
+  } finally {
+    isLoadingAddresses.value = false;
+  }
 });
 
-// ✅ 2. 结账逻辑：带上表单数据
+// 获取当前选中的地址对象
+const currentAddress = computed(() => {
+  return savedAddresses.value.find(a => a.id === selectedAddressId.value);
+});
+
+// 下单逻辑
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
   
-  // 简单校验
-  if (!form.value.name || !form.value.phone || !form.value.address) {
-    alert("Please fill in all shipping details (Name, Phone, Address).");
+  if (!currentAddress.value) {
+    alert("Please select a shipping address.");
     return;
   }
 
   isCheckingOut.value = true;
   try {
-    // 调用 Repository，传入详细信息
-    // 注意：email 由后端从 Token 自动提取，前端不需要传
+    // 使用选中的地址信息下单
     const response = await orderRepo.checkout({
-      receiverName: form.value.name,
-      receiverPhone: form.value.phone,
-      shippingAddress: form.value.address
+      receiverName: currentAddress.value.recipientName,
+      receiverPhone: currentAddress.value.phoneNumber,
+      shippingAddress: currentAddress.value.fullAddress
     });
 
     alert(`🎉 Order placed successfully! Order ID: ${response.orderId}`);
-    router.push('/'); // 跳转回首页
+    router.push('/orders'); 
   } catch (err: any) {
     console.error(err);
     alert("Checkout Failed: " + (err.response?.data?.error || "Unknown error"));
@@ -70,8 +93,7 @@ const handleCheckout = async () => {
       <div v-else-if="cartStore.items.length === 0" class="text-center py-24 bg-white rounded-2xl shadow-sm border border-slate-100">
         <div class="text-6xl mb-6">🛒</div>
         <h2 class="text-2xl font-medium text-slate-900 mb-2">Your cart is currently empty.</h2>
-        <p class="text-slate-500 mb-8">Looks like you haven't made your choice yet.</p>
-        <router-link to="/" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-lg">
+        <router-link to="/" class="mt-6 inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-slate-900 hover:bg-slate-800 shadow-lg">
           Continue Shopping
         </router-link>
       </div>
@@ -81,102 +103,95 @@ const handleCheckout = async () => {
         <section class="lg:col-span-7">
           <ul role="list" class="border-t border-b border-slate-200 divide-y divide-slate-200">
             <li v-for="item in cartStore.items" :key="item.id" class="flex py-6 sm:py-10">
-              
               <div class="flex-shrink-0">
-                <img :src="item.imageUrl" :alt="item.name" class="h-24 w-24 rounded-lg object-cover object-center sm:h-32 sm:w-32 border border-slate-100" />
+                <img :src="item.imageUrl" :alt="item.name" class="h-24 w-24 rounded-lg object-cover border border-slate-100" />
               </div>
-
               <div class="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
-                <div class="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
-                  <div>
-                    <div class="flex justify-between">
-                      <h3 class="text-sm">
-                        <a href="#" class="font-medium text-slate-700 hover:text-violet-600 text-lg">{{ item.name }}</a>
-                      </h3>
-                    </div>
-                    <p class="mt-1 text-sm font-medium text-emerald-600">RM {{ formatPrice(item.price) }}</p>
+                <div>
+                  <div class="flex justify-between">
+                    <h3 class="text-sm font-bold text-slate-800">{{ item.name }}</h3>
                   </div>
-
-                  <div class="mt-4 sm:mt-0 sm:pr-9">
-                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden w-fit bg-slate-50">
-                      <button 
-                        @click="cartStore.changeQuantity(item.id, item.quantity, -1)"
-                        class="px-3 py-1 hover:bg-slate-200 text-slate-600 transition-colors border-r border-slate-200"
-                      >
-                        <span class="text-lg">−</span>
-                      </button>
-
-                      <input 
-                        type="number" 
-                        :value="item.quantity" 
-                        readonly
-                        class="w-12 text-center border-0 bg-transparent py-1 text-sm font-bold text-slate-900 focus:ring-0"
-                      />
-
-                      <button 
-                        @click="cartStore.changeQuantity(item.id, item.quantity, 1)"
-                        class="px-3 py-1 hover:bg-slate-200 text-slate-600 transition-colors border-l border-slate-200"
-                      >
-                        <span class="text-lg">+</span>
-                      </button>
-                    </div>
-
-                    <div class="absolute top-0 right-0">
-                      <button @click="cartStore.removeItem(item.id)" type="button" class="-m-2 inline-flex p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                        <span class="sr-only">Remove</span>
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                  <p class="mt-1 text-sm text-emerald-600 font-medium">RM {{ formatPrice(item.price) }}</p>
+                </div>
+                <div class="flex justify-between items-end">
+                   <div class="flex items-center border rounded bg-white shadow-sm">
+                      <button @click="cartStore.changeQuantity(item.id, item.quantity, -1)" class="px-3 py-1 hover:bg-slate-100 text-slate-500">-</button>
+                      <span class="px-2 text-sm font-bold text-slate-700 min-w-[1.5rem] text-center">{{ item.quantity }}</span>
+                      <button @click="cartStore.changeQuantity(item.id, item.quantity, 1)" class="px-3 py-1 hover:bg-slate-100 text-slate-500">+</button>
+                   </div>
+                   <button @click="cartStore.removeItem(item.id)" class="text-rose-500 text-xs font-bold hover:underline">Remove</button>
                 </div>
               </div>
             </li>
           </ul>
         </section>
 
-        <section class="mt-16 bg-white rounded-xl px-4 py-6 shadow-sm border border-slate-100 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8">
-          <h2 class="text-xl font-bold text-slate-900 font-serif mb-6">Shipping Details</h2>
+        <section class="mt-16 bg-white rounded-xl px-4 py-6 shadow-sm border border-slate-100 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8 sticky top-24">
+          <div class="flex justify-between items-center mb-4">
+             <h2 class="text-xl font-bold text-slate-900 font-serif">Shipping Details</h2>
+             <router-link to="/address-book" class="text-xs font-bold text-violet-600 hover:underline flex items-center gap-1">
+               <span>⚙️</span> Manage Addresses
+             </router-link>
+          </div>
 
-          <form @submit.prevent="handleCheckout" class="space-y-5">
-            <div>
-              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Receiver Name</label>
-              <input v-model="form.name" required type="text" placeholder="e.g. Chen Chen" class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow" />
-            </div>
+          <div v-if="isLoadingAddresses" class="text-center py-4 text-slate-400">Loading addresses...</div>
 
-            <div>
-              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phone Number</label>
-              <input v-model="form.phone" required type="tel" placeholder="e.g. 012-3456789" class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow" />
-            </div>
+          <div v-else-if="savedAddresses.length === 0" class="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+             <p class="text-sm text-slate-500 mb-3">No saved addresses found.</p>
+             <router-link to="/address-book" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-bold hover:bg-slate-50 shadow-sm transition-all">
+               + Add New Address
+             </router-link>
+          </div>
 
-            <div>
-              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Address</label>
-              <textarea v-model="form.address" required rows="3" placeholder="Street, Unit, City, Postcode..." class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow"></textarea>
-            </div>
-
-            <div class="pt-6 border-t border-slate-100">
-              <dl class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <dt class="text-sm text-slate-600">Subtotal</dt>
-                  <dd class="text-sm font-medium text-slate-900">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+          <div v-else class="space-y-3 mb-6 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+             <div 
+               v-for="addr in savedAddresses" 
+               :key="addr.id" 
+               @click="selectedAddressId = addr.id!"
+               :class="[
+                 'cursor-pointer border p-3 rounded-xl transition-all relative',
+                 selectedAddressId === addr.id 
+                   ? 'border-purple-500 bg-purple-50/50 ring-1 ring-purple-500 shadow-sm' 
+                   : 'border-slate-200 hover:border-purple-300 hover:bg-slate-50'
+               ]"
+             >
+                <div class="flex justify-between items-start">
+                   <div class="flex items-center gap-2">
+                     <span class="font-bold text-slate-800 text-sm">{{ addr.recipientName }}</span>
+                     <span v-if="addr.default" class="bg-purple-200 text-purple-800 text-[9px] px-1.5 py-0.5 rounded font-bold">DEFAULT</span>
+                   </div>
+                   <div v-if="selectedAddressId === addr.id" class="text-purple-600 bg-white rounded-full p-0.5 shadow-sm">
+                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                   </div>
                 </div>
-                <div class="flex items-center justify-between">
-                  <dt class="text-base font-bold text-slate-900">Total</dt>
-                  <dd class="text-xl font-bold text-emerald-600">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+                <div class="text-xs text-slate-500 mt-1">{{ addr.phoneNumber }}</div>
+                <div class="text-xs text-slate-600 mt-2 leading-relaxed p-1.5 rounded border border-transparent" :class="selectedAddressId === addr.id ? 'bg-white/60' : 'bg-slate-100'">
+                  {{ addr.fullAddress }}
                 </div>
-              </dl>
-            </div>
+             </div>
+          </div>
 
-            <button 
-              type="submit"
-              :disabled="isCheckingOut || cartStore.isLoading"
-              class="w-full rounded-lg border border-transparent bg-slate-900 px-4 py-3.5 text-base font-bold text-white shadow-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-            >
-              <span v-if="isCheckingOut">Processing...</span>
-              <span v-else>Confirm & Pay</span>
-            </button>
-          </form>
+          <div class="pt-6 border-t border-slate-100">
+            <dl class="space-y-4">
+              <div class="flex items-center justify-between">
+                <dt class="text-sm text-slate-600">Subtotal</dt>
+                <dd class="text-sm font-medium text-slate-900">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-base font-bold text-slate-900">Total</dt>
+                <dd class="text-xl font-bold text-emerald-600">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <button 
+            @click="handleCheckout"
+            :disabled="isCheckingOut || cartStore.isLoading || !selectedAddressId"
+            class="w-full rounded-lg border border-transparent bg-slate-900 px-4 py-3.5 text-base font-bold text-white shadow-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6 flex justify-center items-center gap-2"
+          >
+            <span v-if="isCheckingOut" class="animate-spin text-white">❄️</span>
+            <span>{{ isCheckingOut ? 'Processing...' : 'Confirm & Pay' }}</span>
+          </button>
           
           <div class="mt-4 text-center text-xs text-slate-400">
              Secure Checkout powered by FlowerShop
@@ -186,3 +201,19 @@ const handleCheckout = async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; 
+}
+</style>
