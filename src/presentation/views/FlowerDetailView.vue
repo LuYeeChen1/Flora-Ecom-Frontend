@@ -3,20 +3,20 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
 import Navbar from '../components/Navbar.vue';
-import { useAuthStore } from '../store/authStore'; // ✅ 引入 AuthStore
+import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 
 const route = useRoute();
 const repo = new HttpFlowerRepository();
 const cartStore = useCartStore();
-const authStore = useAuthStore(); // ✅ 使用
+const authStore = useAuthStore();
 
 const flower = ref<any>(null);
 const loading = ref(true);
 const error = ref(null);
 const isAdding = ref(false);
 
-// ✅ 计算是否是店主
+// 计算是否是店主
 const isOwner = computed(() => {
   if (!flower.value || !authStore.user) return false;
   // 注意：后端返回的 sellerId 和 Cognito ID (sub) 应该是匹配的
