@@ -16,10 +16,17 @@ export interface Order {
   status: string; // PAID, PENDING, SHIPPED...
   createdAt: string; // 后端返回的时间字符串
   shippingAddress: string;
+  //  新增：后端现在会返回这些详细信息
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverEmail?: string;
   items: OrderItem[];
 }
 
+//  核心更新：下单请求体包含完整联系人信息
 export interface CheckoutRequest {
+  receiverName: string;
+  receiverPhone: string;
   shippingAddress: string;
 }
 

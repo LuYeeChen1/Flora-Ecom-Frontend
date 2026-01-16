@@ -1,40 +1,54 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import AddressSelector from '../components/AddressSelector.vue'; // ✅ 引入地址选择组件
+import { OrderRepository } from '../../infrastructure/repositories/OrderRepository';
 import { useCartStore } from '../store/cartStore';
 
 const cartStore = useCartStore();
 const router = useRouter();
+const orderRepo = new OrderRepository();
 const formatPrice = (val: number) => val.toFixed(2);
 
-// 控制地址弹窗的状态
-const isAddressModalOpen = ref(false);
+// ✅ 1. 改为手动填写表单，移除 AddressSelector
+const form = ref({
+  name: '',
+  phone: '',
+  address: ''
+});
+
+const isCheckingOut = ref(false);
 
 onMounted(() => {
   cartStore.fetchCart();
 });
 
-// 1. 点击 Checkout 按钮 -> 打开弹窗
-const handleCheckoutClick = () => {
-  // 如果购物车为空，不执行
+// ✅ 2. 结账逻辑：带上表单数据
+const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
-  isAddressModalOpen.value = true;
-};
-
-// 2. 用户在弹窗中选中地址 -> 执行下单
-const handleAddressSelected = async (addressString: string) => {
-  isAddressModalOpen.value = false; // 关闭弹窗
   
-  // 调用 Store 的下单动作
-  const result = await cartStore.checkout(addressString);
+  // 简单校验
+  if (!form.value.name || !form.value.phone || !form.value.address) {
+    alert("Please fill in all shipping details (Name, Phone, Address).");
+    return;
+  }
 
-  // 处理结果
-  if (result.success) {
-    alert(`🎉 Order placed successfully! Your Order ID is: ${result.orderId}`);
+  isCheckingOut.value = true;
+  try {
+    // 调用 Repository，传入详细信息
+    // 注意：email 由后端从 Token 自动提取，前端不需要传
+    const response = await orderRepo.checkout({
+      receiverName: form.value.name,
+      receiverPhone: form.value.phone,
+      shippingAddress: form.value.address
+    });
+
+    alert(`🎉 Order placed successfully! Order ID: ${response.orderId}`);
     router.push('/'); // 跳转回首页
-  } else {
-    alert(`❌ Checkout Failed: ${result.error}`);
+  } catch (err: any) {
+    console.error(err);
+    alert("Checkout Failed: " + (err.response?.data?.error || "Unknown error"));
+  } finally {
+    isCheckingOut.value = false;
   }
 };
 </script>
@@ -122,43 +136,53 @@ const handleAddressSelected = async (addressString: string) => {
           </ul>
         </section>
 
-        <section class="mt-16 bg-white rounded-lg px-4 py-6 shadow-sm border border-slate-100 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8">
-          <h2 class="text-lg font-medium text-slate-900 font-serif">Order summary</h2>
+        <section class="mt-16 bg-white rounded-xl px-4 py-6 shadow-sm border border-slate-100 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8">
+          <h2 class="text-xl font-bold text-slate-900 font-serif mb-6">Shipping Details</h2>
 
-          <dl class="mt-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <dt class="text-sm text-slate-600">Subtotal</dt>
-              <dd class="text-sm font-medium text-slate-900">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+          <form @submit.prevent="handleCheckout" class="space-y-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Receiver Name</label>
+              <input v-model="form.name" required type="text" placeholder="e.g. Chen Chen" class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow" />
             </div>
-            <div class="flex items-center justify-between border-t border-slate-200 pt-4">
-              <dt class="text-base font-medium text-slate-900">Order total</dt>
-              <dd class="text-xl font-bold text-emerald-600">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
-            </div>
-          </dl>
 
-          <div class="mt-6">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phone Number</label>
+              <input v-model="form.phone" required type="tel" placeholder="e.g. 012-3456789" class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Address</label>
+              <textarea v-model="form.address" required rows="3" placeholder="Street, Unit, City, Postcode..." class="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-shadow"></textarea>
+            </div>
+
+            <div class="pt-6 border-t border-slate-100">
+              <dl class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <dt class="text-sm text-slate-600">Subtotal</dt>
+                  <dd class="text-sm font-medium text-slate-900">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+                </div>
+                <div class="flex items-center justify-between">
+                  <dt class="text-base font-bold text-slate-900">Total</dt>
+                  <dd class="text-xl font-bold text-emerald-600">RM {{ formatPrice(cartStore.totalPrice) }}</dd>
+                </div>
+              </dl>
+            </div>
+
             <button 
-              @click="handleCheckoutClick"
-              :disabled="cartStore.isLoading"
-              type="button" 
-              class="w-full rounded-md border border-transparent bg-slate-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              type="submit"
+              :disabled="isCheckingOut || cartStore.isLoading"
+              class="w-full rounded-lg border border-transparent bg-slate-900 px-4 py-3.5 text-base font-bold text-white shadow-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              <span v-if="cartStore.isLoading">Processing...</span>
-              <span v-else>Checkout</span>
+              <span v-if="isCheckingOut">Processing...</span>
+              <span v-else>Confirm & Pay</span>
             </button>
-          </div>
+          </form>
           
           <div class="mt-4 text-center text-xs text-slate-400">
-             Shipping and taxes calculated at checkout.
+             Secure Checkout powered by FlowerShop
           </div>
         </section>
       </div>
     </div>
-
-    <AddressSelector 
-      :is-open="isAddressModalOpen"
-      @close="isAddressModalOpen = false"
-      @select="handleAddressSelected"
-    />
   </div>
 </template>
