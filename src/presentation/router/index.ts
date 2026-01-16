@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 修正路径：从 ../presentation/views 改为 ../views
 import ApplySellerView from '../views/ApplySellerView.vue'
 import CartView from '../views/CartView.vue'
 import FlowerDetailView from '../views/FlowerDetailView.vue'
@@ -9,8 +8,9 @@ import NotFound from '../views/NotFound.vue'
 import ProfileView from '../views/ProfileView.vue'
 import RegisterSuccessView from '../views/RegisterSuccessView.vue'
 import SellerDashboardView from '../views/SellerDashboardView.vue'
+// 1. 引入新页面
+import OrderListView from '../views/OrderListView.vue'
 
-// 修正路径：从 ../presentation/store 改为 ../store
 import { useAuthStore } from '../store/authStore'
 
 const router = createRouter({
@@ -28,39 +28,43 @@ const router = createRouter({
       component: ApplySellerView,
     },
 
-    // 新增：鲜花详情页路由
+    // 鲜花详情
     {
       path: '/flowers/:id',
       name: 'flower-detail',
       component: FlowerDetailView,
-      props: true // 允许把 ID 当作参数传给组件
+      props: true 
     },
 
+    // 购物车
     {
       path: '/cart',
       name: 'cart',
       component: CartView,
-      meta: { requiresAuth: true } // 购物车通常需要登录
+      meta: { requiresAuth: true } 
     },
 
-    // 卖家仪表盘 (带权限守卫)
+    // ✅ 2. 注册订单列表路由
+    {
+      path: '/orders',
+      name: 'orders',
+      component: OrderListView,
+      meta: { requiresAuth: true }
+    },
+
+    // 卖家仪表盘
     {
       path: '/seller/dashboard',
       name: 'seller-dashboard',
       component: SellerDashboardView,
       beforeEnter: async (to, from, next) => {
         const authStore = useAuthStore();
-        
-        // 简单等待 Auth 加载
         if (authStore.isLoading) {
-           // 可选：添加等待逻辑
+           // wait logic could be added here
         }
-
-        // 权限检查
         if (authStore.user?.role === 'SELLER' || authStore.user?.role === 'ADMIN') {
           next(); 
         } else {
-          // 权限不足，踢回个人中心
           alert("Access Denied: Merchant Zone Only.");
           next('/profile'); 
         }

@@ -100,6 +100,10 @@ onMounted(() => {
                  <RouterLink to="/profile" @click="isProfileOpen = false" class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors">
                   <span class="mr-3">👤</span> 个人中心
                 </RouterLink>
+
+                <RouterLink to="/orders" @click="isProfileOpen = false" class="flex items-center px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white transition-colors">
+                  <span class="mr-3">📦</span> 我的订单
+                </RouterLink>
                 
                 <RouterLink 
                   v-if="authStore.user.role === 'SELLER'" 

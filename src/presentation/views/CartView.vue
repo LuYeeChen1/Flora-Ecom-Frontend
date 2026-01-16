@@ -1,16 +1,42 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import AddressSelector from '../components/AddressSelector.vue'; // ✅ 引入地址选择组件
 import { useCartStore } from '../store/cartStore';
 
 const cartStore = useCartStore();
-
-// 格式化价格显示
+const router = useRouter();
 const formatPrice = (val: number) => val.toFixed(2);
 
+// 控制地址弹窗的状态
+const isAddressModalOpen = ref(false);
+
 onMounted(() => {
-  // 页面挂载时获取最新的购物车数据
   cartStore.fetchCart();
 });
+
+// 1. 点击 Checkout 按钮 -> 打开弹窗
+const handleCheckoutClick = () => {
+  // 如果购物车为空，不执行
+  if (cartStore.items.length === 0) return;
+  isAddressModalOpen.value = true;
+};
+
+// 2. 用户在弹窗中选中地址 -> 执行下单
+const handleAddressSelected = async (addressString: string) => {
+  isAddressModalOpen.value = false; // 关闭弹窗
+  
+  // 调用 Store 的下单动作
+  const result = await cartStore.checkout(addressString);
+
+  // 处理结果
+  if (result.success) {
+    alert(`🎉 Order placed successfully! Your Order ID is: ${result.orderId}`);
+    router.push('/'); // 跳转回首页
+  } else {
+    alert(`❌ Checkout Failed: ${result.error}`);
+  }
+};
 </script>
 
 <template>
@@ -111,8 +137,14 @@ onMounted(() => {
           </dl>
 
           <div class="mt-6">
-            <button type="button" class="w-full rounded-md border border-transparent bg-slate-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-slate-50 transition-all">
-              Checkout
+            <button 
+              @click="handleCheckoutClick"
+              :disabled="cartStore.isLoading"
+              type="button" 
+              class="w-full rounded-md border border-transparent bg-slate-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span v-if="cartStore.isLoading">Processing...</span>
+              <span v-else>Checkout</span>
             </button>
           </div>
           
@@ -122,5 +154,11 @@ onMounted(() => {
         </section>
       </div>
     </div>
+
+    <AddressSelector 
+      :is-open="isAddressModalOpen"
+      @close="isAddressModalOpen = false"
+      @select="handleAddressSelected"
+    />
   </div>
 </template>

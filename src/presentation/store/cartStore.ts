@@ -3,8 +3,13 @@ import { computed, ref } from 'vue';
 import { CartRepository, type CartItem } from '../../infrastructure/repositories/CartRepository';
 import { useAuthStore } from './authStore';
 
+// 1. 引入 OrderRepository
+import { OrderRepository } from '../../infrastructure/repositories/OrderRepository';
+
 export const useCartStore = defineStore('cart', () => {
   const repo = new CartRepository();
+  const orderRepo = new OrderRepository(); // 初始化
+
   const authStore = useAuthStore();
 
   // --- State (状态) ---
@@ -104,6 +109,31 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+    async function checkout(shippingAddress: string) {
+    if (!authStore.token) {
+      alert("Please login to checkout");
+      return { success: false };
+    }
+
+    isLoading.value = true;
+    try {
+      // 1. 调用 API 下单
+      const result = await orderRepo.checkout({ shippingAddress });
+      
+      // 2. 下单成功，后端已清空数据库，前端同步清空本地状态
+      items.value = []; 
+      
+      return { success: true, orderId: result.orderId };
+    } catch (err: any) {
+      console.error("Checkout failed", err);
+      // 获取后端返回的具体错误信息 (如库存不足)
+      const errorMsg = err.response?.data?.error || "Checkout failed. Please try again.";
+      return { success: false, error: errorMsg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   // 5. 切换购物车显示/隐藏 (若有侧边栏需求可用)
   function toggleCart() {
     isCartOpen.value = !isCartOpen.value;
@@ -117,8 +147,9 @@ export const useCartStore = defineStore('cart', () => {
     totalPrice,
     fetchCart,
     addItem,
-    changeQuantity, // ✅ 记得导出新方法
+    changeQuantity,
     removeItem,
-    toggleCart
+    toggleCart,
+    checkout
   };
 });
