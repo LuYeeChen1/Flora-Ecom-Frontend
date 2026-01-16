@@ -17,7 +17,7 @@ const isSubmitting = ref(false);
 const myFlowers = ref<any[]>([]);
 const myOrders = ref<any[]>([]);
 
-// 弹窗状态
+// 弹窗状态 (新增/编辑商品)
 const showModal = ref(false);
 const isEditMode = ref(false);
 const editingId = ref<number | null>(null);
@@ -44,6 +44,8 @@ const loadAllData = async () => {
     console.error("Data load failed", error);
     if (error.response?.status === 403) {
       alert("⚠️ Access Denied: Please re-login.");
+      authStore.logout();
+      router.push('/login');
     }
   } finally {
     isLoading.value = false;
@@ -55,7 +57,8 @@ onMounted(() => loadAllData());
 // --- 计算属性：实时统计 ---
 const stats = computed(() => {
   const totalRevenue = myOrders.value.reduce((sum, order) => {
-    // 简单计算总收入，如果后端直接返回总价更好，这里假设前端计算
+    // 仅计算该卖家部分的收入 (假设后端已过滤 items，或者这里简单取 totalPrice)
+    // 如果是混合订单，这里其实应该只累加属于自己的 items 价格，这里简化处理取 totalPrice
     return sum + (order.totalPrice || 0); 
   }, 0);
 
@@ -92,12 +95,8 @@ const openEditModal = (flower: any) => {
   isEditMode.value = true;
   editingId.value = flower.id;
   Object.assign(form, {
-    name: flower.name,
-    description: flower.description,
-    price: Number(flower.price),
-    stock: flower.stock,
-    category: flower.category,
-    imageUrl: flower.imageUrl
+    name: flower.name, description: flower.description, price: Number(flower.price),
+    stock: flower.stock, category: flower.category, imageUrl: flower.imageUrl
   });
   previewImage.value = flower.imageUrl;
   selectedFile.value = null;
@@ -106,17 +105,13 @@ const openEditModal = (flower: any) => {
 
 const handleDeleteFlower = async (id: number) => {
   if (!confirm("Delete this flower? Operations cannot be undone.")) return;
-  try {
-    await repo.deleteFlower(id);
-    await loadAllData();
-  } catch (err) { alert("Delete failed."); }
+  try { await repo.deleteFlower(id); await loadAllData(); } catch (err) { alert("Delete failed."); }
 };
 
 const handleSubmit = async () => {
   try {
     isSubmitting.value = true;
     let finalKey = form.imageUrl;
-
     if (selectedFile.value) {
       const { uploadUrl, key } = await repo.getUploadUrl(selectedFile.value.type, selectedFile.value.name);
       await repo.uploadToS3(uploadUrl, selectedFile.value);
@@ -124,9 +119,7 @@ const handleSubmit = async () => {
     } else if (!isEditMode.value) {
       alert("Image is required."); isSubmitting.value = false; return;
     }
-
     const payload = { ...form, imageUrl: finalKey };
-
     if (isEditMode.value && editingId.value) {
       await repo.updateFlower(editingId.value, payload);
       alert("✅ Updated!");
@@ -144,17 +137,36 @@ const handleSubmit = async () => {
   }
 };
 
-// --- 订单管理逻辑 ---
+// --- [核心逻辑] 订单流转处理 ---
 const formatDate = (str: string) => new Date(str).toLocaleDateString('en-MY', {
   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
 });
 
-const handleShipOrder = async (orderId: number) => {
-  if (!confirm("Mark order #" + orderId + " as Shipped?")) return;
+// 1. 发货 (Action: Ship Items)
+// 适用于混合订单，只发货自己的部分
+const handleShipItems = async (orderId: number) => {
+  if (!confirm(`Confirm shipping for Order #${orderId}? \n(This will mark YOUR items as shipped)`)) return;
   try {
     await repo.shipOrder(orderId);
+    await loadAllData(); // 刷新数据，检查是否全单已变为 SHIPPED
+    alert("✅ Items marked as shipped!");
+  } catch (err: any) {
+    console.error(err);
+    alert("Failed to ship: " + (err.response?.data?.error || "Unknown error"));
+  }
+};
+
+// 2. 送达 (Action: Deliver Order)
+// 只有当主订单状态已经是 SHIPPED 时，才能操作此步
+const handleDeliverOrder = async (orderId: number) => {
+  if (!confirm(`Mark Order #${orderId} as Delivered? \n(The customer has received the package)`)) return;
+  try {
+    await repo.updateOrderStatus(orderId, 'DELIVERED');
     await loadAllData();
-  } catch (err) { alert("Operation failed."); }
+  } catch (err: any) {
+    console.error(err);
+    alert("Failed to update status: " + (err.response?.data?.error || "Unknown error"));
+  }
 };
 </script>
 
@@ -279,7 +291,11 @@ const handleShipOrder = async (orderId: number) => {
               </div>
               
               <div>
-                 <span :class="{'bg-green-100 text-green-700 border-green-200': order.status === 'SHIPPED', 'bg-yellow-100 text-yellow-700 border-yellow-200': order.status === 'PAID', 'bg-blue-100 text-blue-700 border-blue-200': order.status === 'COMPLETED'}" class="px-3 py-1 rounded-full text-xs font-bold border">
+                 <span :class="{
+                   'bg-green-100 text-green-700 border-green-200': order.status === 'DELIVERED', 
+                   'bg-blue-100 text-blue-700 border-blue-200': order.status === 'SHIPPED', 
+                   'bg-yellow-100 text-yellow-700 border-yellow-200': order.status === 'PAID' || order.status === 'PENDING_PAYMENT'
+                 }" class="px-3 py-1 rounded-full text-xs font-bold border uppercase">
                    {{ order.status }}
                  </span>
               </div>
@@ -303,8 +319,8 @@ const handleShipOrder = async (orderId: number) => {
                      <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                        <span>📧</span> Contact Info
                      </h4>
-                     <div class="text-sm text-slate-700 font-medium">email: {{ order.buyerEmail }}</div>
-                     <div class="text-sm text-slate-500 mt-1">phone: {{ order.buyerPhone }}</div>
+                     <div class="text-sm text-slate-700 font-medium">{{ order.buyerEmail }}</div>
+                     <div class="text-sm text-slate-500 mt-1">{{ order.buyerPhone }}</div>
                    </div>
 
                    <div>
@@ -318,16 +334,34 @@ const handleShipOrder = async (orderId: number) => {
                  </div>
                  
                  <div class="mt-6 pt-6 border-t border-slate-50">
+                   
                    <button 
                      v-if="order.status === 'PAID'"
-                     @click="handleShipOrder(order.orderId)"
-                     class="w-full bg-slate-900 text-white py-3 rounded-lg hover:bg-slate-700 transition-all font-bold text-sm flex justify-center items-center gap-2 shadow-lg hover:shadow-xl"
+                     @click="handleShipItems(order.orderId)"
+                     class="w-full bg-blue-900 text-white py-3 rounded-lg hover:bg-blue-800 transition-all font-bold text-sm flex justify-center items-center gap-2 shadow-lg hover:shadow-xl"
                    >
-                     <span>🚢</span> Mark as Shipped
+                     <span>🚢</span> Ship My Items
                    </button>
+                   
+                   <button 
+                     v-else-if="order.status === 'SHIPPED'"
+                     @click="handleDeliverOrder(order.orderId)"
+                     class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-all font-bold text-sm flex justify-center items-center gap-2 shadow-lg hover:shadow-xl"
+                   >
+                     <span>✅</span> Mark as Delivered
+                   </button>
+
+                   <div v-else-if="order.status === 'DELIVERED'" class="text-center">
+                     <span class="inline-block w-full bg-slate-100 text-slate-400 py-3 rounded-lg font-bold text-sm border border-slate-200">
+                       Order Completed
+                     </span>
+                     <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest">Great Job!</p>
+                   </div>
+                   
                    <button v-else disabled class="w-full bg-slate-100 text-slate-400 py-3 rounded-lg font-bold text-sm border border-slate-200 cursor-not-allowed">
-                     Item Shipped
+                     Processing...
                    </button>
+
                  </div>
               </div>
             </div>

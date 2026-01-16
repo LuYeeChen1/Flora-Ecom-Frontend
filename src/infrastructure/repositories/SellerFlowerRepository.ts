@@ -27,7 +27,7 @@ export class SellerFlowerRepository {
     });
   }
 
-  // --- 2. 商品管理 (CRUD) ---
+  // --- 2. 商品管理 (Inventory CRUD) ---
   
   async createFlower(flower: FlowerData) {
     await apiClient.post('/seller/flowers', flower);
@@ -46,16 +46,26 @@ export class SellerFlowerRepository {
     await apiClient.delete(`/seller/flowers/${id}`);
   }
 
-  // --- 3. 订单管理 ---
+  // --- 3. 订单管理 (Order Operations) ---
 
-  // 修正：去掉 /api 前缀，变为 /seller/orders
+  // 获取该卖家的所有关联订单（混合视图）
   async getIncomingOrders() {
     const response = await apiClient.get('/seller/orders'); 
     return response.data;
   }
 
-  // 修正：去掉 /api 前缀
+  // [Action A] 发货：只发货属于当前卖家的商品 (支持混合订单)
+  // 对应后端 SellerController.shipOrder (PATCH /api/seller/orders/{id}/ship)
   async shipOrder(orderId: number) {
     await apiClient.patch(`/seller/orders/${orderId}/ship`);
   }
+
+  // [Action B] 全单流转：SHIPPED -> DELIVERED
+  // 对应后端 OrderController.updateStatus (PATCH /api/orders/{id}/status)
+  async updateOrderStatus(orderId: number, status: string) {
+    await apiClient.patch(`/api/orders/${orderId}/status`, { status });
+  }
 }
+
+// 导出单例，供 Store 使用
+export const sellerFlowerRepository = new SellerFlowerRepository();
