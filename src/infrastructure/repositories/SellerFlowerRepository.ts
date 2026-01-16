@@ -34,9 +34,19 @@ export class SellerFlowerRepository {
     await apiClient.post('/seller/flowers', flower);
   }
 
-  // 🔥 [新增] 获取我的库存 (从 SellerDashboardView 抽取出来的)
+  // 获取我的库存 (从 SellerDashboardView 抽取出来的)
   async getMyInventory() {
     const response = await apiClient.get('/seller/flowers');
     return response.data;
+  }
+
+  // 更新鲜花
+  async updateFlower(id: number, flower: FlowerData) {
+    await apiClient.put(`/seller/flowers/${id}`, flower);
+  }
+
+  // 删除鲜花
+  async deleteFlower(id: number) {
+    await apiClient.delete(`/seller/flowers/${id}`);
   }
 }

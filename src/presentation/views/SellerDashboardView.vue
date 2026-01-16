@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { SellerFlowerRepository } from '../../infrastructure/repositories/SellerFlowerRepository';
+import { SellerFlowerRepository, type FlowerData } from '../../infrastructure/repositories/SellerFlowerRepository';
 import { useAuthStore } from '../store/authStore';
-import { useFlowerStore } from '../store/flowerStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const flowerStore = useFlowerStore();
 
 // --- UI 状态 ---
-const showAddModal = ref(false);
+const showModal = ref(false);
+const isEditMode = ref(false);
+const editingId = ref<number | null>(null);
 const previewImage = ref<string | null>(null);
 const selectedFile = ref<File | null>(null);
 const isLoadingInventory = ref(true);
+const isSubmitting = ref(false);
 const repo = new SellerFlowerRepository();
 
 // --- 数据 ---
 const myFlowers = ref<any[]>([]);
 
 // 表单
-const form = reactive({
-  name: '', description: '', price: 0, stock: 1, category: 'ROMANCE'
+const form = reactive<FlowerData>({
+  name: '', description: '', price: 0, stock: 1, category: 'ROMANCE', imageUrl: ''
 });
 
 const stats = ref([
@@ -38,15 +39,13 @@ const loadInventory = async () => {
     isLoadingInventory.value = true;
     myFlowers.value = await repo.getMyInventory();
     
-    // 更新统计
     if (stats.value && stats.value[0]) {
       stats.value[0].value = myFlowers.value.length.toString();
     }
   } catch (error: any) {
     console.error("加载库存失败", error);
-    // 🔍 增加权限错误提示
     if (error.response && error.response.status === 403) {
-      alert("⚠️ 权限拒绝：系统未识别到您的卖家身份。请尝试重新登录。");
+      alert("⚠️ 权限拒绝：请重新登录。");
     }
   } finally {
     isLoadingInventory.value = false;
@@ -69,21 +68,84 @@ const handleFileChange = (event: Event) => {
   }
 };
 
-const handleSubmit = async () => {
-  if (!selectedFile.value) { alert("请选择一张鲜花图片"); return; }
+// 打开新增弹窗
+const openAddModal = () => {
+  isEditMode.value = false;
+  editingId.value = null;
+  form.name = ''; form.description = ''; form.price = 0; form.stock = 1; form.category = 'ROMANCE'; form.imageUrl = '';
+  selectedFile.value = null; previewImage.value = null;
+  showModal.value = true;
+};
 
-  const success = await flowerStore.addFlower(selectedFile.value, {
-    name: form.name, description: form.description, price: form.price, stock: form.stock, category: form.category
-  });
+// ✅ 打开编辑弹窗
+const openEditModal = (flower: any) => {
+  isEditMode.value = true;
+  editingId.value = flower.id;
+  // 回显数据
+  form.name = flower.name;
+  form.description = flower.description;
+  form.price = parseFloat(flower.price); // 确保是数字
+  form.stock = flower.stock;
+  form.category = flower.category;
+  form.imageUrl = flower.imageUrl; // 保留原图URL
+  
+  previewImage.value = flower.imageUrl;
+  selectedFile.value = null;
+  showModal.value = true;
+};
 
-  if (success) {
-    showAddModal.value = false;
-    selectedFile.value = null; previewImage.value = null;
-    form.name = ''; form.description = ''; form.price = 0;
+// ✅ 删除逻辑
+const handleDelete = async (id: number) => {
+  if (!confirm("Are you sure you want to delete this flower?")) return;
+  try {
+    await repo.deleteFlower(id);
     await loadInventory();
-    alert("✅ 鲜花上架成功！");
-  } else {
-    alert("❌ 上架失败: " + flowerStore.error);
+  } catch (err) {
+    alert("Delete failed.");
+  }
+};
+
+// 提交表单 (新增或更新)
+const handleSubmit = async () => {
+  try {
+    isSubmitting.value = true;
+    let finalImageUrl = form.imageUrl;
+
+    // 1. 如果有新文件，先上传 S3
+    if (selectedFile.value) {
+      const { uploadUrl, key } = await repo.getUploadUrl(selectedFile.value.type, selectedFile.value.name);
+      await repo.uploadToS3(uploadUrl, selectedFile.value);
+      finalImageUrl = key; // 后端需要的是 Key
+    } else if (!isEditMode.value) {
+      // 新增模式必须有图
+      alert("Please upload an image."); isSubmitting.value = false; return;
+    }
+
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: form.price,
+      stock: form.stock,
+      category: form.category,
+      imageUrl: finalImageUrl // 传 Key 或 URL 给后端 (Service会判断)
+    };
+
+    if (isEditMode.value && editingId.value) {
+      await repo.updateFlower(editingId.value, payload);
+      alert("✅ Updated successfully!");
+    } else {
+      await repo.createFlower(payload as FlowerData);
+      alert("✅ Created successfully!");
+    }
+
+    showModal.value = false;
+    await loadInventory();
+
+  } catch (err: any) {
+    console.error(err);
+    alert("Operation failed: " + (err.response?.data?.message || err.message));
+  } finally {
+    isSubmitting.value = false;
   }
 };
 </script>
@@ -114,7 +176,7 @@ const handleSubmit = async () => {
           <h2 class="text-3xl text-slate-800">Dashboard</h2>
           <p class="text-slate-500 mt-1">Manage your inventory and orders.</p>
         </div>
-        <button @click="showAddModal = true" class="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200/50">
+        <button @click="openAddModal" class="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200/50">
           + Add New Flower
         </button>
       </header>
@@ -145,13 +207,18 @@ const handleSubmit = async () => {
         <div v-else-if="myFlowers.length === 0" class="text-center py-16 bg-white rounded-xl border border-dashed border-slate-300">
            <div class="text-4xl mb-4 opacity-50">🥀</div>
            <p class="text-slate-500">您还没有上传任何鲜花。</p>
-           <button @click="showAddModal = true" class="mt-4 text-purple-600 font-medium hover:underline">立即上架第一朵花</button>
+           <button @click="openAddModal" class="mt-4 text-purple-600 font-medium hover:underline">立即上架第一朵花</button>
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            <div v-for="flower in myFlowers" :key="flower.id" class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-all group relative">
               <div class="h-56 overflow-hidden bg-slate-100 relative">
                 <img :src="flower.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+                
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
+                   <button @click="openEditModal(flower)" class="bg-white text-slate-900 px-4 py-2 rounded-full font-bold text-sm hover:bg-purple-50 transition-colors">Edit</button>
+                   <button @click="handleDelete(flower.id)" class="bg-rose-500 text-white px-4 py-2 rounded-full font-bold text-sm hover:bg-rose-600 transition-colors">Delete</button>
+                </div>
               </div>
               <div class="p-5">
                 <div class="flex justify-between items-start mb-2">
@@ -177,11 +244,11 @@ const handleSubmit = async () => {
       </div>
     </main>
 
-    <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-          <h3 class="text-xl font-bold text-slate-800">Add New Flower</h3>
-          <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+          <h3 class="text-xl font-bold text-slate-800">{{ isEditMode ? 'Edit Flower' : 'Add New Flower' }}</h3>
+          <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
         <form @submit.prevent="handleSubmit" class="p-8 space-y-6">
           <div class="flex justify-center">
@@ -223,9 +290,9 @@ const handleSubmit = async () => {
             </div>
           </div>
           <div class="pt-4 flex justify-end gap-4">
-            <button type="button" @click="showAddModal = false" class="px-6 py-2 text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
-            <button type="submit" :disabled="flowerStore.isLoading" class="px-8 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50">
-               {{ flowerStore.isLoading ? 'Uploading...' : 'Publish Item' }}
+            <button type="button" @click="showModal = false" class="px-6 py-2 text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+            <button type="submit" :disabled="isSubmitting" class="px-8 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50">
+               {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update' : 'Publish Item') }}
             </button>
           </div>
         </form>

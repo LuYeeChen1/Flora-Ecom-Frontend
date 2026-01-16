@@ -1,18 +1,27 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { HttpFlowerRepository } from '../../infrastructure/repositories/HttpFlowerRepository';
 import Navbar from '../components/Navbar.vue';
-import { useCartStore } from '../store/cartStore'; // ✅ 1. 引入 CartStore
+import { useAuthStore } from '../store/authStore'; // ✅ 引入 AuthStore
+import { useCartStore } from '../store/cartStore';
 
 const route = useRoute();
 const repo = new HttpFlowerRepository();
-const cartStore = useCartStore(); // ✅ 2. 初始化 Store
+const cartStore = useCartStore();
+const authStore = useAuthStore(); // ✅ 使用
 
 const flower = ref<any>(null);
 const loading = ref(true);
 const error = ref(null);
-const isAdding = ref(false); // 本地添加状态 (用于按钮反馈)
+const isAdding = ref(false);
+
+// ✅ 计算是否是店主
+const isOwner = computed(() => {
+  if (!flower.value || !authStore.user) return false;
+  // 注意：后端返回的 sellerId 和 Cognito ID (sub) 应该是匹配的
+  return flower.value.sellerId === authStore.user.id; 
+});
 
 onMounted(async () => {
   try {
@@ -25,14 +34,16 @@ onMounted(async () => {
   }
 });
 
-// ✅ 3. 处理添加购物车点击
 const handleAddToCart = async () => {
   if (!flower.value) return;
+  // 🛡️ 前端防御
+  if (isOwner.value) {
+    alert("❌ You cannot buy your own product!");
+    return;
+  }
   
   isAdding.value = true;
-  // 调用 Store 添加商品 (Store 内部会自动刷新列表并打开侧边栏)
   const success = await cartStore.addItem(flower.value.id, 1);
-  
   isAdding.value = false;
 };
 </script>
@@ -99,11 +110,19 @@ const handleAddToCart = async () => {
            <div class="mt-8 flex gap-4 font-sans">
              <button 
                @click="handleAddToCart"
-               :disabled="isAdding || cartStore.isLoading"
-               class="flex-1 bg-slate-900 text-white py-4 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 font-bold tracking-wide disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+               :disabled="isAdding || cartStore.isLoading || isOwner || flower.stock <= 0"
+               :class="[
+                 'flex-1 py-4 rounded-lg transition-all shadow-lg font-bold tracking-wide flex justify-center items-center gap-2',
+                 isOwner || flower.stock <= 0
+                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                   : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200'
+               ]"
              >
-               <span v-if="isAdding" class="animate-spin text-white">❄️</span>
-               <span>{{ isAdding ? 'ADDING...' : 'ADD TO CART' }}</span>
+               <span v-if="isAdding" class="animate-spin">❄️</span>
+               
+               <span v-if="flower.stock <= 0">OUT OF STOCK</span>
+               <span v-else-if="isOwner">🚫 YOU OWN THIS ITEM</span>
+               <span v-else>{{ isAdding ? 'ADDING...' : 'ADD TO CART' }}</span>
              </button>
            </div>
         </div>
