@@ -95,12 +95,22 @@ onMounted(async () => {
             <div class="space-y-4">
               <div v-for="item in order.items" :key="item.id" class="flex justify-between items-center group">
                 <div class="flex items-center gap-4">
-                  <div class="h-12 w-12 rounded bg-violet-50 text-violet-400 flex items-center justify-center text-xl border border-violet-100">
-                    🌸
+                  
+                  <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border border-slate-200">
+                    <img 
+                      v-if="item.imageUrl" 
+                      :src="item.imageUrl" 
+                      :alt="item.flowerName"
+                      class="h-full w-full object-cover object-center"
+                    />
+                    <div v-else class="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400">
+                      🌸
+                    </div>
                   </div>
+
                   <div>
                     <p class="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition-colors">{{ item.flowerName }}</p>
-                    <p class="text-xs text-slate-500">Qty: {{ item.quantity }} &times; RM {{ formatPrice(item.priceAtPurchase) }}</p>
+                    <p class="text-xs text-slate-500 mt-1">Qty: {{ item.quantity }} &times; RM {{ formatPrice(item.priceAtPurchase) }}</p>
                   </div>
                 </div>
                 <p class="text-sm font-medium text-slate-700">RM {{ formatPrice(item.priceAtPurchase * item.quantity) }}</p>

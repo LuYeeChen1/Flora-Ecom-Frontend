@@ -7,6 +7,7 @@ export interface OrderItem {
   flowerName: string;
   quantity: number;
   priceAtPurchase: number;
+  imageUrl?: string;
 }
 
 export interface Order {

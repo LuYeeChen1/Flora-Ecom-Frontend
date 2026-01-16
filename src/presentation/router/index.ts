@@ -44,7 +44,7 @@ const router = createRouter({
       meta: { requiresAuth: true } 
     },
 
-    // ✅ 2. 注册订单列表路由
+    // ✅ 2. 注册订单列表路由 (需要登录)
     {
       path: '/orders',
       name: 'orders',

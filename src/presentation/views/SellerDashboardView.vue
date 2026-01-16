@@ -1,35 +1,29 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { SellerFlowerRepository } from '../../infrastructure/repositories/SellerFlowerRepository';
 import { useAuthStore } from '../store/authStore';
 import { useFlowerStore } from '../store/flowerStore';
-// ✅ 引入 Repository
-import { SellerFlowerRepository } from '../../infrastructure/repositories/SellerFlowerRepository';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const flowerStore = useFlowerStore();
 
-// --- 1. UI 状态管理 ---
+// --- UI 状态 ---
 const showAddModal = ref(false);
 const previewImage = ref<string | null>(null);
 const selectedFile = ref<File | null>(null);
-const isLoadingInventory = ref(true); // 库存加载状态
-const repo = new SellerFlowerRepository(); // ✅ 实例化 Repo
+const isLoadingInventory = ref(true);
+const repo = new SellerFlowerRepository();
 
-// --- 2. 数据模型 ---
-const myFlowers = ref<any[]>([]); // 存放后端返回的鲜花列表
+// --- 数据 ---
+const myFlowers = ref<any[]>([]);
 
-// 表单数据
+// 表单
 const form = reactive({
-  name: '',
-  description: '',
-  price: 0,
-  stock: 1,
-  category: 'ROMANCE'
+  name: '', description: '', price: 0, stock: 1, category: 'ROMANCE'
 });
 
-// 模拟的统计数据
 const stats = ref([
   { title: 'Total Flowers', value: '0', icon: '🌸', color: 'bg-purple-100 text-purple-600' },
   { title: 'Pending Orders', value: '0', icon: '📦', color: 'bg-blue-100 text-blue-600' },
@@ -37,74 +31,56 @@ const stats = ref([
   { title: 'Rating', value: '5.0', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
 ]);
 
-// --- 3. 核心业务逻辑 ---
-
-// 🔥 加载我的库存
-// 🔥 核心修改：使用 Repo 替代 axios
+// --- 核心逻辑 ---
 const loadInventory = async () => {
   if (!authStore.token) return;
   try {
     isLoadingInventory.value = true;
-    
-    // ❌ 删除旧代码: axios.get('http://localhost:8080...')
-    // ✅ 新代码:
     myFlowers.value = await repo.getMyInventory();
     
-    // 更新统计数据
+    // 更新统计
     if (stats.value && stats.value[0]) {
       stats.value[0].value = myFlowers.value.length.toString();
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("加载库存失败", error);
+    // 🔍 增加权限错误提示
+    if (error.response && error.response.status === 403) {
+      alert("⚠️ 权限拒绝：系统未识别到您的卖家身份。请尝试重新登录。");
+    }
   } finally {
     isLoadingInventory.value = false;
   }
 };
 
-// 页面加载时执行
 onMounted(() => {
   loadInventory();
 });
 
-// 处理文件选择预览
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
     const file = target.files[0];
     if (file.size > 5 * 1024 * 1024) {
-      alert("文件过大 (Max 5MB)");
-      return;
+      alert("文件过大 (Max 5MB)"); return;
     }
     selectedFile.value = file;
     previewImage.value = URL.createObjectURL(file);
   }
 };
 
-// 提交上架表单
 const handleSubmit = async () => {
-  if (!selectedFile.value) {
-    alert("请选择一张鲜花图片");
-    return;
-  }
+  if (!selectedFile.value) { alert("请选择一张鲜花图片"); return; }
 
   const success = await flowerStore.addFlower(selectedFile.value, {
-    name: form.name,
-    description: form.description,
-    price: form.price,
-    stock: form.stock,
-    category: form.category
+    name: form.name, description: form.description, price: form.price, stock: form.stock, category: form.category
   });
 
   if (success) {
-    // 1. 关闭弹窗并重置表单
     showAddModal.value = false;
-    selectedFile.value = null;
-    previewImage.value = null;
+    selectedFile.value = null; previewImage.value = null;
     form.name = ''; form.description = ''; form.price = 0;
-    
-    // 2. 自动刷新列表
     await loadInventory();
-    
     alert("✅ 鲜花上架成功！");
   } else {
     alert("❌ 上架失败: " + flowerStore.error);
@@ -115,10 +91,10 @@ const handleSubmit = async () => {
 <template>
   <div class="min-h-screen bg-slate-50 flex font-serif">
     
-    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full shadow-2xl z-20">
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col fixed left-0 top-20 h-[calc(100vh-5rem)] shadow-2xl z-20">
       <div class="p-8 border-b border-slate-800">
-        <h1 class="text-2xl text-white font-italic tracking-widest">FlowerShop</h1>
-        <p class="text-xs text-purple-400 mt-2 uppercase tracking-wider">Merchant Center</p>
+        <h1 class="text-xl text-white font-italic tracking-widest">Merchant Center</h1>
+        <p class="text-xs text-purple-400 mt-2 uppercase tracking-wider">Seller Dashboard</p>
       </div>
       <nav class="flex-1 p-4 space-y-2">
         <a href="#" class="flex items-center gap-3 px-4 py-3 bg-purple-600/20 text-purple-300 rounded-lg border border-purple-500/30">
@@ -174,11 +150,9 @@ const handleSubmit = async () => {
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            <div v-for="flower in myFlowers" :key="flower.id" class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-all group relative">
-              
               <div class="h-56 overflow-hidden bg-slate-100 relative">
                 <img :src="flower.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
               </div>
-
               <div class="p-5">
                 <div class="flex justify-between items-start mb-2">
                    <h4 class="font-bold text-slate-800 text-lg truncate pr-2">{{ flower.name }}</h4>
@@ -201,11 +175,10 @@ const handleSubmit = async () => {
            </div>
         </div>
       </div>
-
     </main>
 
     <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+       <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
           <h3 class="text-xl font-bold text-slate-800">Add New Flower</h3>
           <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
