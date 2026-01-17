@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import apiClient from '../../infrastructure/api/apiClient';
 import { OrderRepository, type Order } from '../../infrastructure/repositories/OrderRepository';
 
+const router = useRouter();
 const orderRepo = new OrderRepository();
 const orders = ref<Order[]>([]);
 const isLoading = ref(true);
 
-// 格式化日期 (例如: 15 January 2026, 09:30 AM)
 const formatDate = (dateString: string) => {
   if (!dateString) return '';
   return new Date(dateString).toLocaleDateString('en-MY', {
@@ -14,21 +16,22 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// 格式化价格
 const formatPrice = (val: number) => val.toFixed(2);
 
-// 状态颜色映射
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'PAID': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     case 'PENDING': return 'bg-amber-100 text-amber-800 border-amber-200';
     case 'SHIPPED': return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'DELIVERED': return 'bg-green-100 text-green-800 border-green-200';
+    case 'CANCELLATION_REQUESTED': return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'CANCELLED': return 'bg-slate-100 text-slate-500 border-slate-200';
     default: return 'bg-slate-50 text-slate-600 border-slate-200';
   }
 };
 
-onMounted(async () => {
+const loadOrders = async () => {
+  isLoading.value = true;
   try {
     orders.value = await orderRepo.getMyOrders();
   } catch (err) {
@@ -36,6 +39,29 @@ onMounted(async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+// ✅ 新增：申请取消逻辑
+const handleRequestCancel = async (orderId: number) => {
+  const confirmed = window.confirm(
+    "⚠️ Are you sure you want to cancel this order?\n\n" +
+    "This will send a request to the seller for approval."
+  );
+  
+  if (!confirmed) return;
+
+  try {
+    // 假设后端端点: POST /api/orders/{id}/cancel-request
+    await apiClient.post(`/api/orders/${orderId}/cancel-request`);
+    alert("✅ Cancellation requested. Waiting for seller approval.");
+    await loadOrders(); // 刷新列表
+  } catch (err: any) {
+    alert("Failed: " + (err.response?.data?.message || "Could not request cancellation."));
+  }
+};
+
+onMounted(() => {
+  loadOrders();
 });
 </script>
 
@@ -86,7 +112,7 @@ onMounted(async () => {
                 <p class="font-bold text-slate-900 mt-0.5 text-lg">RM {{ formatPrice(order.totalPrice) }}</p>
               </div>
               <span :class="['px-3 py-1 rounded-full text-xs font-bold border', getStatusColor(order.status)]">
-                {{ order.status }}
+                {{ order.status.replace('_', ' ') }}
               </span>
             </div>
           </div>
@@ -95,19 +121,10 @@ onMounted(async () => {
             <div class="space-y-4">
               <div v-for="item in order.items" :key="item.id" class="flex justify-between items-center group">
                 <div class="flex items-center gap-4">
-                  
                   <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border border-slate-200">
-                    <img 
-                      v-if="item.imageUrl" 
-                      :src="item.imageUrl" 
-                      :alt="item.flowerName"
-                      class="h-full w-full object-cover object-center"
-                    />
-                    <div v-else class="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400">
-                      🌸
-                    </div>
+                    <img v-if="item.imageUrl" :src="item.imageUrl" class="h-full w-full object-cover object-center" />
+                    <div v-else class="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400">🌸</div>
                   </div>
-
                   <div>
                     <p class="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition-colors">{{ item.flowerName }}</p>
                     <p class="text-xs text-slate-500 mt-1">Qty: {{ item.quantity }} &times; RM {{ formatPrice(item.priceAtPurchase) }}</p>
@@ -117,15 +134,26 @@ onMounted(async () => {
               </div>
             </div>
             
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-start text-xs text-slate-500">
-              <div class="flex gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-                </svg>
-                <div>
-                  <span class="font-semibold text-slate-700">Shipping Address:</span>
-                  <p class="mt-0.5 max-w-md">{{ order.shippingAddress }}</p>
-                </div>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+              <div class="flex gap-2 items-center text-xs text-slate-500">
+                <span class="font-semibold text-slate-700">Ship To:</span>
+                <span class="truncate max-w-xs">{{ order.shippingAddress }}</span>
+              </div>
+
+              <button 
+                v-if="order.status === 'PAID'"
+                @click="handleRequestCancel(order.id)"
+                class="text-xs font-bold text-rose-600 border border-rose-200 bg-rose-50 px-4 py-2 rounded-lg hover:bg-rose-100 transition-colors"
+              >
+                Request Cancellation
+              </button>
+              
+              <div v-else-if="order.status === 'CANCELLATION_REQUESTED'" class="text-xs font-medium text-orange-600 flex items-center gap-1">
+                 ⏳ Waiting for seller approval
+              </div>
+
+              <div v-else-if="order.status === 'CANCELLED'" class="text-xs font-medium text-slate-400">
+                 🚫 Cancelled
               </div>
             </div>
           </div>

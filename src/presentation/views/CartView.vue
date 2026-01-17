@@ -23,14 +23,10 @@ onMounted(async () => {
   try {
     savedAddresses.value = await addressRepo.getMyAddresses();
     
-    // ✅ 修复：安全地设置默认选中项
     if (savedAddresses.value.length > 0) {
-      // 1. 优先找默认地址
       const defaultAddr = savedAddresses.value.find(a => a.default);
-      // 2. 如果没有默认，就选第一个 (后端已经按 is_default 排序，所以第一个通常就是最优解)
       const targetAddr = defaultAddr || savedAddresses.value[0];
       
-      // 3. 安全赋值，避免 TypeScript 报错 "Object is possibly undefined"
       if (targetAddr && targetAddr.id !== undefined) {
         selectedAddressId.value = targetAddr.id;
       }
@@ -47,7 +43,7 @@ const currentAddress = computed(() => {
   return savedAddresses.value.find(a => a.id === selectedAddressId.value);
 });
 
-// 下单逻辑
+// ✅ 核心逻辑：双重确认下单
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
   
@@ -56,9 +52,18 @@ const handleCheckout = async () => {
     return;
   }
 
+  // Double Confirmation
+  const confirmed = window.confirm(
+    `Confirm Checkout?\n\n` +
+    `Total: RM ${formatPrice(cartStore.totalPrice)}\n` + 
+    `Items: ${cartStore.items.length}\n\n` +
+    `Click OK to place your order.`
+  );
+  
+  if (!confirmed) return;
+
   isCheckingOut.value = true;
   try {
-    // 使用选中的地址信息下单
     const response = await orderRepo.checkout({
       receiverName: currentAddress.value.recipientName,
       receiverPhone: currentAddress.value.phoneNumber,
