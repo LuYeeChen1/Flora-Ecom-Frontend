@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+// ✅ [新增] 引入统一的 Flower 接口，确保与 CatalogView 类型一致
+import type { Flower } from '../../domain/models/Flower';
 
-// 定义 Props (使用行内类型定义以确保通用性)
+// ✅ [修改] 使用引入的接口，而不是在组件内手写类型
 const props = defineProps<{
-  flower: {
-    id: string | number;
-    name: string;
-    description: string;
-    price: number;
-    imageUrl: string;
-    category?: string;
-  }
+  flower: Flower
 }>();
 
 const router = useRouter();
@@ -24,7 +19,6 @@ const formattedId = computed(() => {
 
 // 2. 跳转到详情页
 const goToDetail = () => {
-  console.log("Navigating to flower id:", props.flower.id);
   router.push({ 
     name: 'flower-detail', 
     params: { id: props.flower.id } 
@@ -48,6 +42,7 @@ const goToDetail = () => {
           :src="flower.imageUrl" 
           :alt="flower.name" 
           class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          loading="lazy"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-[#fdfbf7] via-transparent to-transparent opacity-20"></div>
       </div>
@@ -59,13 +54,13 @@ const goToDetail = () => {
           {{ flower.name }}
         </h3>
         
-        <p class="mt-3 text-xs leading-relaxed text-slate-500 font-serif italic line-clamp-3 px-2">
+        <p class="mt-3 text-xs leading-relaxed text-slate-500 font-serif italic line-clamp-3 px-2 h-[3em]">
           {{ flower.description }}
         </p>
 
         <div class="mt-6 flex items-center justify-center gap-4">
           <span class="font-serif text-lg text-emerald-700 font-semibold">
-            RM {{ flower.price }}
+            RM {{ Number(flower.price).toFixed(2) }}
           </span>
           
           <button 
