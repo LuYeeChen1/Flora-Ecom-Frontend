@@ -48,13 +48,19 @@ const loadAllData = async () => {
 onMounted(() => loadAllData());
 
 const stats = computed(() => {
-  const totalRevenue = myOrders.value.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+  const totalRevenue = myOrders.value.reduce((sum, order) => {
+    if (order.status === 'CANCELLED') return sum;
+    return sum + (order.totalPrice || 0); 
+  }, 0);
+
   const pendingOrders = myOrders.value.filter(o => o.status === 'PAID').length;
+  const totalStock = myFlowers.value.reduce((sum, flower) => sum + (flower.stock || 0), 0);
+
   return [
-    { title: 'Total Flowers', value: myFlowers.value.length.toString(), icon: '🌸', color: 'bg-purple-100 text-purple-600' },
+    { title: 'Total Listings', value: myFlowers.value.length.toString(), icon: '🌸', color: 'bg-purple-100 text-purple-600' },
     { title: 'Pending Orders', value: pendingOrders.toString(), icon: '📦', color: 'bg-blue-100 text-blue-600' },
     { title: 'Revenue', value: `RM ${totalRevenue.toFixed(0)}`, icon: '💰', color: 'bg-green-100 text-green-600' },
-    { title: 'Rating', value: '5.0', icon: '⭐', color: 'bg-yellow-100 text-yellow-600' },
+    { title: 'Total Inventory', value: totalStock.toString(), icon: '📊', color: 'bg-orange-100 text-orange-600' },
   ];
 });
 
@@ -101,33 +107,38 @@ const handleModalSubmit = async ({ form, file }: { form: FlowerData, file: File 
   }
 };
 
+// --- Order Action Handlers ---
+
 const handleShipItems = async (orderId: number) => {
   if (!confirm(`Confirm shipping for Order #${orderId}?`)) return;
   try {
-    await repo.shipOrder(orderId);
+    // ✅ 修复：直接使用 apiClient，不加 /api 前缀
+    await apiClient.patch(`/seller/orders/${orderId}/ship`);
     await loadAllData();
     alert("✅ Items marked as shipped!");
   } catch (err: any) {
-    alert("Failed: " + err.response?.data?.error);
+    alert("Failed: " + (err.response?.data?.error || "Unknown error"));
   }
 };
 
 const handleDeliverOrder = async (orderId: number) => {
   if (!confirm(`Mark Order #${orderId} as Delivered?`)) return;
   try {
-    await repo.updateOrderStatus(orderId, 'DELIVERED');
+    // ✅ 修复：直接使用 apiClient，不加 /api 前缀，并使用正确的 /deliver 端点
+    await apiClient.patch(`/seller/orders/${orderId}/deliver`);
     await loadAllData();
+    alert("✅ Order marked as delivered!");
   } catch (err: any) {
-    alert("Failed: " + err.response?.data?.error);
+    console.error(err);
+    alert("Failed: " + (err.response?.data?.error || "Unknown error"));
   }
 };
 
-// ✅ [修复] 移除路径中的 /api 前缀
 const handleAudit = async (orderId: number, approved: boolean) => {
   const actionText = approved ? "APPROVE" : "REJECT";
   if (!confirm(`Are you sure you want to ${actionText}?`)) return;
   try {
-    // 修正：从 '/api/seller/...' 改为 '/seller/...'
+    // ✅ 修复：直接使用 apiClient，不加 /api 前缀
     await apiClient.post(`/seller/orders/${orderId}/audit-cancel`, { approved });
     alert("✅ Processed successfully!");
     await loadAllData();
