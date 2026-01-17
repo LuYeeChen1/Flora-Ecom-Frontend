@@ -1,28 +1,38 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+// ✅ [修复] 修正路径：向上三级才能到达 infrastructure
+import apiClient from '../../../infrastructure/api/apiClient';
 
 const router = useRouter();
 
-// 接收订单数据
-defineProps<{
+const props = defineProps<{
   orders: any[]
 }>();
 
-// 定义操作事件
 const emit = defineEmits<{
   (e: 'ship', orderId: number): void;
   (e: 'deliver', orderId: number): void;
   (e: 'audit', orderId: number, approved: boolean): void;
+  (e: 'refresh'): void;
 }>();
 
-// 日期格式化
 const formatDate = (str: string) => new Date(str).toLocaleDateString('en-MY', {
   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
 });
 
-// 跳转详情页逻辑
 const handleViewDetail = (orderId: number) => {
   router.push(`/seller/orders/${orderId}`);
+};
+
+// 卖家删除历史
+const handleDelete = async (orderId: number) => {
+  if (!confirm("🗑️ Remove this order from your history?")) return;
+  try {
+    await apiClient.delete(`/seller/orders/${orderId}`);
+    emit('refresh'); 
+  } catch (err: any) {
+    alert("Failed: " + (err.response?.data?.message || "Error"));
+  }
 };
 </script>
 
@@ -62,11 +72,19 @@ const handleViewDetail = (orderId: number) => {
            >
              View Detail <span>→</span>
            </button>
+
+           <button 
+             v-if="order.status === 'DELIVERED' || order.status === 'CANCELLED'"
+             @click="handleDelete(order.orderId)"
+             class="ml-2 text-slate-400 hover:text-rose-500 transition-colors p-1"
+             title="Remove from history"
+           >
+             🗑️
+           </button>
         </div>
       </div>
 
       <div class="p-6 flex flex-col lg:flex-row gap-8">
-        
         <div class="flex-1 space-y-4">
            <div v-for="(item, index) in order.items.slice(0, 2)" :key="index" class="flex items-start gap-4">
               <img :src="item.imageUrl" class="w-16 h-16 rounded-lg object-cover border border-slate-100" />
@@ -79,32 +97,22 @@ const handleViewDetail = (orderId: number) => {
         </div>
 
         <div class="lg:w-1/3 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col justify-between">
-           <div class="space-y-4">
-             <div>
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Shipping To</h4>
-                <p class="text-sm text-slate-600 truncate">{{ order.shippingAddress }}</p>
+           <div class="mt-2 space-y-3">
+             <button v-if="order.status === 'PAID'" @click="emit('ship', order.orderId)" class="w-full bg-blue-900 text-white py-2.5 rounded-lg hover:bg-blue-800 font-bold text-sm shadow-md transition-all">
+               🚢 Ship Order
+             </button>
+             
+             <div v-else-if="order.status === 'CANCELLATION_REQUESTED'" class="bg-rose-50 p-3 rounded-lg border border-rose-100 text-center">
+                <p class="text-rose-800 font-bold text-xs mb-2">⚠️ Cancellation Requested</p>
+                <div class="grid grid-cols-2 gap-2">
+                   <button @click="emit('audit', order.orderId, false)" class="bg-white text-slate-600 border border-slate-300 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Reject</button>
+                   <button @click="emit('audit', order.orderId, true)" class="bg-rose-600 text-white py-1.5 rounded text-xs font-bold hover:bg-rose-700 shadow-sm">Approve</button>
+                </div>
              </div>
 
-             <div class="pt-4 border-t border-slate-50 space-y-3">
-               <button v-if="order.status === 'PAID'" @click="emit('ship', order.orderId)" class="w-full bg-blue-900 text-white py-2.5 rounded-lg hover:bg-blue-800 font-bold text-sm shadow-md transition-all">
-                 🚢 Ship Order
-               </button>
-               
-               <div v-else-if="order.status === 'CANCELLATION_REQUESTED'" class="bg-rose-50 p-3 rounded-lg border border-rose-100 text-center">
-                  <p class="text-rose-800 font-bold text-xs mb-2">⚠️ Cancellation Requested</p>
-                  <div class="grid grid-cols-2 gap-2">
-                     <button @click="emit('audit', order.orderId, false)" class="bg-white text-slate-600 border border-slate-300 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Reject</button>
-                     <button @click="emit('audit', order.orderId, true)" class="bg-rose-600 text-white py-1.5 rounded text-xs font-bold hover:bg-rose-700 shadow-sm">Approve</button>
-                  </div>
-               </div>
-
-               <button v-else-if="order.status === 'SHIPPED'" @click="emit('deliver', order.orderId)" class="w-full bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 font-bold text-sm shadow-md transition-all">
-                 ✅ Mark Delivered
-               </button>
-               
-               <div v-else-if="order.status === 'DELIVERED'" class="text-center text-xs text-slate-400 font-bold py-2 bg-slate-50 rounded">Order Completed</div>
-               <div v-else-if="order.status === 'CANCELLED'" class="text-center text-xs text-slate-400 font-bold py-2 bg-slate-50 rounded">Order Cancelled</div>
-             </div>
+             <button v-else-if="order.status === 'SHIPPED'" @click="emit('deliver', order.orderId)" class="w-full bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 font-bold text-sm shadow-md transition-all">
+               ✅ Mark Delivered
+             </button>
            </div>
         </div>
       </div>

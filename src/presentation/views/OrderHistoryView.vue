@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '../../infrastructure/api/apiClient';
 import { OrderRepository, type Order } from '../../infrastructure/repositories/OrderRepository';
@@ -30,6 +30,10 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const hasHistoryToClear = computed(() => {
+  return orders.value.some(o => o.status === 'DELIVERED' || o.status === 'CANCELLED');
+});
+
 const loadOrders = async () => {
   isLoading.value = true;
   try {
@@ -41,23 +45,36 @@ const loadOrders = async () => {
   }
 };
 
-// ✅ [修复] 移除路径中的 /api 前缀
 const handleRequestCancel = async (orderId: number) => {
-  const confirmed = window.confirm(
-    "⚠️ Are you sure you want to cancel this order?\n\n" +
-    "This will send a request to the seller for approval."
-  );
-  
-  if (!confirmed) return;
-
+  if (!confirm("⚠️ Request cancellation for this order?")) return;
   try {
-    // 修正：从 '/api/orders/...' 改为 '/orders/...'
     await apiClient.post(`/orders/${orderId}/cancel-request`);
-    alert("✅ Cancellation requested. Waiting for seller approval.");
-    await loadOrders(); // 刷新列表
+    alert("✅ Cancellation requested.");
+    await loadOrders(); 
   } catch (err: any) {
-    console.error(err);
-    alert("Failed: " + (err.response?.data?.message || "Could not request cancellation."));
+    alert("Failed: " + (err.response?.data?.message || "Error"));
+  }
+};
+
+// ✅ [新增] 删除单个历史
+const handleDeleteHistory = async (orderId: number) => {
+  if (!confirm("🗑️ Remove this order from your history?")) return;
+  try {
+    await apiClient.delete(`/orders/${orderId}`);
+    await loadOrders(); 
+  } catch (err: any) {
+    alert("Failed: " + (err.response?.data?.message || "Error"));
+  }
+};
+
+// ✅ [新增] 一键清空
+const handleClearHistory = async () => {
+  if (!confirm("🗑️ Clear ALL completed and cancelled orders from history?")) return;
+  try {
+    await apiClient.delete(`/orders/history`);
+    await loadOrders();
+  } catch (err: any) {
+    alert("Failed: " + (err.response?.data?.message || "Error"));
   }
 };
 
@@ -71,9 +88,20 @@ onMounted(() => {
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-slate-900 font-serif">My Orders</h1>
-        <router-link to="/" class="text-sm text-violet-600 hover:underline font-sans">
-          &larr; Continue Shopping
-        </router-link>
+        
+        <div class="flex gap-4">
+          <button 
+            v-if="hasHistoryToClear"
+            @click="handleClearHistory"
+            class="text-xs font-bold text-slate-500 hover:text-rose-600 transition-colors flex items-center gap-1"
+          >
+            🗑️ Clear History
+          </button>
+          
+          <router-link to="/" class="text-sm text-violet-600 hover:underline font-sans">
+            &larr; Continue Shopping
+          </router-link>
+        </div>
       </div>
 
       <div v-if="isLoading" class="flex justify-center py-20">
@@ -115,6 +143,15 @@ onMounted(() => {
               <span :class="['px-3 py-1 rounded-full text-xs font-bold border', getStatusColor(order.status)]">
                 {{ order.status.replace('_', ' ') }}
               </span>
+              
+              <button 
+                v-if="order.status === 'DELIVERED' || order.status === 'CANCELLED'"
+                @click="handleDeleteHistory(order.id)"
+                class="ml-2 text-slate-400 hover:text-rose-500 transition-colors p-1"
+                title="Remove from history"
+              >
+                🗑️
+              </button>
             </div>
           </div>
 
@@ -151,10 +188,6 @@ onMounted(() => {
               
               <div v-else-if="order.status === 'CANCELLATION_REQUESTED'" class="text-xs font-medium text-orange-600 flex items-center gap-1">
                  ⏳ Waiting for seller approval
-              </div>
-
-              <div v-else-if="order.status === 'CANCELLED'" class="text-xs font-medium text-slate-400">
-                 🚫 Cancelled
               </div>
             </div>
           </div>
