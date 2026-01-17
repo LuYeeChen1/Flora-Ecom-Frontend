@@ -5,7 +5,6 @@ import apiClient from '../../infrastructure/api/apiClient';
 import { SellerFlowerRepository, type FlowerData } from '../../infrastructure/repositories/SellerFlowerRepository';
 import { useAuthStore } from '../store/authStore';
 
-// 引入子组件
 import FlowerModal from '../components/seller/FlowerModal.vue';
 import SellerInventory from '../components/seller/SellerInventory.vue';
 import SellerOrderList from '../components/seller/SellerOrderList.vue';
@@ -14,19 +13,16 @@ const router = useRouter();
 const authStore = useAuthStore();
 const repo = new SellerFlowerRepository();
 
-// --- 状态管理 ---
 const activeTab = ref<'inventory' | 'orders'>('inventory');
 const isLoading = ref(false);
 const myFlowers = ref<any[]>([]);
 const myOrders = ref<any[]>([]);
 
-// 弹窗状态
 const showModal = ref(false);
 const isEditMode = ref(false);
 const editingId = ref<number | null>(null);
 const currentFlowerData = ref<FlowerData | undefined>(undefined);
 
-// --- 核心数据加载 ---
 const loadAllData = async () => {
   if (!authStore.token) return;
   try {
@@ -51,7 +47,6 @@ const loadAllData = async () => {
 
 onMounted(() => loadAllData());
 
-// --- 统计数据 ---
 const stats = computed(() => {
   const totalRevenue = myOrders.value.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
   const pendingOrders = myOrders.value.filter(o => o.status === 'PAID').length;
@@ -63,7 +58,6 @@ const stats = computed(() => {
   ];
 });
 
-// --- Modal Handlers (库存增删改) ---
 const openAddModal = () => {
   isEditMode.value = false;
   editingId.value = null;
@@ -80,12 +74,7 @@ const openEditModal = (flower: any) => {
 
 const handleDeleteFlower = async (id: number) => {
   if (!confirm("Delete this flower? Operations cannot be undone.")) return;
-  try { 
-    await repo.deleteFlower(id); 
-    await loadAllData(); 
-  } catch (err) { 
-    alert("Delete failed."); 
-  }
+  try { await repo.deleteFlower(id); await loadAllData(); } catch (err) { alert("Delete failed."); }
 };
 
 const handleModalSubmit = async ({ form, file }: { form: FlowerData, file: File | null }) => {
@@ -112,7 +101,6 @@ const handleModalSubmit = async ({ form, file }: { form: FlowerData, file: File 
   }
 };
 
-// --- Order Handlers (订单操作) ---
 const handleShipItems = async (orderId: number) => {
   if (!confirm(`Confirm shipping for Order #${orderId}?`)) return;
   try {
@@ -120,7 +108,7 @@ const handleShipItems = async (orderId: number) => {
     await loadAllData();
     alert("✅ Items marked as shipped!");
   } catch (err: any) {
-    alert("Failed: " + (err.response?.data?.error || "Unknown error"));
+    alert("Failed: " + err.response?.data?.error);
   }
 };
 
@@ -130,15 +118,17 @@ const handleDeliverOrder = async (orderId: number) => {
     await repo.updateOrderStatus(orderId, 'DELIVERED');
     await loadAllData();
   } catch (err: any) {
-    alert("Failed: " + (err.response?.data?.error || "Unknown error"));
+    alert("Failed: " + err.response?.data?.error);
   }
 };
 
+// ✅ [修复] 移除路径中的 /api 前缀
 const handleAudit = async (orderId: number, approved: boolean) => {
   const actionText = approved ? "APPROVE" : "REJECT";
   if (!confirm(`Are you sure you want to ${actionText}?`)) return;
   try {
-    await apiClient.post(`/api/seller/orders/${orderId}/audit-cancel`, { approved });
+    // 修正：从 '/api/seller/...' 改为 '/seller/...'
+    await apiClient.post(`/seller/orders/${orderId}/audit-cancel`, { approved });
     alert("✅ Processed successfully!");
     await loadAllData();
   } catch (err: any) {
@@ -169,7 +159,7 @@ const handleAudit = async (orderId: number, approved: boolean) => {
         <button v-if="activeTab === 'inventory'" @click="openAddModal" class="bg-slate-900 text-white px-6 py-2.5 rounded-lg hover:bg-slate-800 shadow-lg flex items-center gap-2"><span>+</span> Add New Flower</button>
       </header>
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <div v-for="stat in stats" :key="stat.title" class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
            <p class="text-xs text-slate-400 font-bold uppercase">{{ stat.title }}</p>
            <h3 class="text-2xl font-bold text-slate-800 mt-2">{{ stat.value }}</h3>

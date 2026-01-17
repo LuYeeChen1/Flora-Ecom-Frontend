@@ -41,7 +41,7 @@ const loadOrders = async () => {
   }
 };
 
-// ✅ 新增：申请取消逻辑
+// ✅ [修复] 移除路径中的 /api 前缀
 const handleRequestCancel = async (orderId: number) => {
   const confirmed = window.confirm(
     "⚠️ Are you sure you want to cancel this order?\n\n" +
@@ -51,11 +51,12 @@ const handleRequestCancel = async (orderId: number) => {
   if (!confirmed) return;
 
   try {
-    // 假设后端端点: POST /api/orders/{id}/cancel-request
-    await apiClient.post(`/api/orders/${orderId}/cancel-request`);
+    // 修正：从 '/api/orders/...' 改为 '/orders/...'
+    await apiClient.post(`/orders/${orderId}/cancel-request`);
     alert("✅ Cancellation requested. Waiting for seller approval.");
     await loadOrders(); // 刷新列表
   } catch (err: any) {
+    console.error(err);
     alert("Failed: " + (err.response?.data?.message || "Could not request cancellation."));
   }
 };
