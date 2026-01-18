@@ -9,23 +9,35 @@ export const useFlowerStore = defineStore('flower', () => {
   const publicRepo = new HttpFlowerRepository();
   const authStore = useAuthStore();
 
-  const flowers = ref<any[]>([]); // 公共列表
+  const flowers = ref<any[]>([]); 
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
 
   /**
-   * 1. [公共] 获取所有鲜花列表
+   * 1. [公共] 获取所有鲜花列表 (适配分页接口)
    */
-  async function fetchFlowers() {
+  async function fetchFlowers(params: any = {}) {
     isLoading.value = true;
     error.value = null;
     try {
-      const data = await publicRepo.getFlowers();
-      flowers.value = data;
+      // ✅ 现在 publicRepo.getFlowers 支持传参了
+      const data = await publicRepo.getFlowers(params);
+      
+      // 智能识别返回结构
+      if (data && Array.isArray(data.list)) {
+        flowers.value = data.list;
+      } else if (Array.isArray(data)) {
+        flowers.value = data;
+      } else {
+        console.warn("Unexpected flower data format:", data);
+        flowers.value = [];
+      }
+
     } catch (err: any) {
       console.error("Failed to fetch flowers:", err);
       error.value = "无法加载鲜花数据";
+      flowers.value = [];
     } finally {
       isLoading.value = false;
     }
@@ -40,16 +52,17 @@ export const useFlowerStore = defineStore('flower', () => {
     successMessage.value = null;
 
     try {
+      // 检查登录状态
       if (!authStore.token) throw new Error("Unauthorized: Please login first.");
 
       // Step 1: 获取链接
+      // ✅ [修复] 删除 authStore.token 参数 (apiClient 会自动处理)
       const { uploadUrl, key } = await sellerRepo.getUploadUrl(
-        authStore.token, 
         file.type, 
         file.name
       );
 
-      // Step 2: 上传 S3
+      // Step 2: 上传 S3 (这个通常是直接传 S3，不走 apiClient，所以保持原样)
       await sellerRepo.uploadToS3(uploadUrl, file);
 
       // Step 3: 保存数据
@@ -58,7 +71,8 @@ export const useFlowerStore = defineStore('flower', () => {
         imageUrl: key 
       };
       
-      await sellerRepo.createFlower(authStore.token, flowerData);
+      // ✅ [修复] 删除 authStore.token 参数
+      await sellerRepo.createFlower(flowerData);
       
       successMessage.value = "Flower listed successfully!";
       return true;

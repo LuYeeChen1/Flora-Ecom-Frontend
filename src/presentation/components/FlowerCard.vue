@@ -1,23 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-// ✅ [新增] 引入统一的 Flower 接口，确保与 CatalogView 类型一致
 import type { Flower } from '../../domain/models/Flower';
 
-// ✅ [修改] 使用引入的接口，而不是在组件内手写类型
 const props = defineProps<{
   flower: Flower
 }>();
 
 const router = useRouter();
 
-// 1. 编号格式化: 1 -> "001"
 const formattedId = computed(() => {
   if (!props.flower.id) return '000';
   return String(props.flower.id).padStart(3, '0');
 });
 
-// 2. 跳转到详情页
 const goToDetail = () => {
   router.push({ 
     name: 'flower-detail', 

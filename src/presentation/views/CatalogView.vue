@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
+// ✅ [修复] 修正路径：model (单数) 且路径层级正确
 import type { Flower } from '../../domain/models/Flower';
 import apiClient from '../../infrastructure/api/apiClient';
+// ✅ [修复] 修正路径：直接指向 components 目录
 import FlowerCard from '../components/FlowerCard.vue';
 
 const flowers = ref<Flower[]>([]);
@@ -10,7 +12,6 @@ const currentPage = ref(1);
 const totalPages = ref(1);
 const pageSize = 6; 
 
-// 过滤与搜索状态
 const selectedCategory = ref('ALL');
 const searchQuery = ref('');
 
@@ -34,18 +35,17 @@ const fetchFlowers = async () => {
         offset: offset
       }
     });
-    // 确保后端返回的数据结构匹配
+    // ✅ 适配后端新接口返回结构 { list: [], total: 0 }
     flowers.value = response.data.list || [];
     totalPages.value = Math.ceil((response.data.total || 0) / pageSize);
   } catch (error) {
     console.error("Failed to load catalog", error);
-    flowers.value = []; // 出错时重置为空数组
+    flowers.value = []; 
   } finally {
     isLoading.value = false;
   }
 };
 
-// 监听搜索和分类变化，重置页码并重新加载
 watch([selectedCategory, searchQuery], () => {
   currentPage.value = 1;
   fetchFlowers();
@@ -139,7 +139,7 @@ const handlePageChange = (dir: 'prev' | 'next') => {
 
 <style scoped>
 .grid {
-  min-height: 400px; /* 防止内容加载时页面跳动 */
+  min-height: 400px;
   align-content: start;
 }
 </style>

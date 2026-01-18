@@ -1,28 +1,29 @@
-import axios from 'axios';
 import type { FlowerRepository } from '../../domain/interfaces/FlowerRepository';
 import type { Flower } from '../../domain/models/Flower';
+import apiClient from '../api/apiClient'; // ✅ 使用统一的 apiClient
 
 export class HttpFlowerRepository implements FlowerRepository {
-  // 定义后端基础路径 (根据你的 Spring Boot 端口)
-  private baseUrl = 'http://localhost:8080/api/public/flowers';
+  // ❌ 删除: private baseUrl = '...'; 
+  // ✅ apiClient 已经配置了 baseURL: 'http://localhost:8080/api'
 
-  async getFlowers(): Promise<Flower[]> {
+  // ✅ [修复] 支持传入 params (limit, offset, category, search)
+  // 返回类型改为 Promise<any> 以支持 { list: Flower[], total: number } 结构
+  async getFlowers(params: any = {}): Promise<any> {
     try {
-      // 1. 发起真实的 HTTP GET 请求
-      const response = await axios.get<Flower[]>(this.baseUrl);
+      // 这里的路径是相对于 apiClient 的 baseURL 的
+      // 最终请求: http://localhost:8080/api/public/flowers
+      const response = await apiClient.get('/public/flowers', { params });
       
-      // 2. 返回后端给的数据 (Axios 会自动解析 JSON)
       return response.data;
     } catch (error) {
       console.error('Failed to fetch flowers from API:', error);
-      // 如果请求失败，返回空数组或抛出错误，不要静默失败
       throw error;
     }
   }
 
   async getFlowerById(id: string): Promise<Flower | null> {
     try {
-      const response = await axios.get<Flower>(`${this.baseUrl}/${id}`);
+      const response = await apiClient.get<Flower>(`/public/flowers/${id}`);
       return response.data;
     } catch (error) {
       return null;
