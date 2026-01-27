@@ -1,12 +1,24 @@
-<template>
-  <div class="h-screen flex flex-col items-center justify-center bg-slate-900">
-    <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
-      环境搭建成功！
-    </h1>
-    <p class="mt-4 text-slate-400 text-lg">Vite + Vue 3 + Tailwind CSS v4 正常运行中</p>
+<script setup lang="ts">
+import "@aws-amplify/ui-vue/styles.css";
+import { onMounted } from 'vue';
+import Navbar from './presentation/components/Navbar.vue';
+import { useAuthStore } from './presentation/store/authStore';
 
-      <button class="mt-8 px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-colors">
-        立即开始
-      </button>
+// 1. 获取 Store 实例
+const authStore = useAuthStore();
+
+// 2. 当应用启动/挂载时，自动检查用户是否已登录
+onMounted(async () => {
+  await authStore.checkAuth();
+});
+</script>
+
+<template>
+  <div class="min-h-screen bg-slate-50 font-sans text-slate-900">
+    <Navbar />
+    
+    <main class="container mx-auto p-4">
+      <router-view></router-view>
+    </main>
   </div>
 </template>
