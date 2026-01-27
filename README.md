@@ -172,9 +172,3 @@ java -jar target/flower-shop.jar
 * **Role:** Full Stack Cloud Developer
 * **GitHub:** [@LuYeeChen1](https://www.google.com/search?q=https://github.com/LuYeeChen1)
 * **Email:** luyeechen03@gmail.com
-
-```
-
-这份文档去除了所有“炫技”的形容词，专注于展示**架构设计的合理性**和**代码结构的规范性**，非常符合 Technical Interview 的标准。
-
-```
