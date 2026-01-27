@@ -33,7 +33,7 @@ A custom, immersive registration flow using **Event-Driven Architecture**.
 
 | Signal Sent (OTP) | Bond Established | Infrastructure Logic |
 | :---: | :---: | :---: |
-| <img src="./assets/image_9064d5.jpg" width="250" /> | <img src="./assets/image_906418.png" width="250" /> | <img src="./assets/image_904e6d.png" width="350" /> |
+| <img src="./assets/auth-signal.jpg" width="250" /> | <img src="./assets/auth-success.png" width="250" /> | <img src="./assets/lambda-code.png" width="350" /> |
 
 ### 2. ⚡ Instant Seller Onboarding (KYC Flow)
 Designed for seamless growth, the platform features an **Automated Role Transition** system.
@@ -42,7 +42,7 @@ Designed for seamless growth, the platform features an **Automated Role Transiti
 
 | Merchant Application | Contract Sealed | Seller Dashboard |
 | :---: | :---: | :---: |
-| <img src="./assets/image_905214.png" width="250" /> | <img src="./assets/image_12_sealed.png" width="250" /> | <img src="./assets/image_9054fa.png" width="250" /> |
+| <img src="./assets/seller-form.png" width="250" /> | <img src="./assets/seller-sealed.png" width="250" /> | <img src="./assets/seller-dashboard.png" width="250" /> |
 
 ### 3. 🔐 Enterprise RBAC (Role-Based Access Control)
 Strict security implementation using **AWS Cognito Groups**.
@@ -50,7 +50,7 @@ Strict security implementation using **AWS Cognito Groups**.
 * **SELLER:** Product management & Order fulfillment.
 * **CUSTOMER:** Shopping & Order tracking.
 
-![Cognito Groups](./assets/image_9051d1.png)
+![Cognito Groups](./assets/cognito-groups.png)
 
 ---
 
