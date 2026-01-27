@@ -43,7 +43,8 @@ const handleAddToCart = async () => {
   }
   
   isAdding.value = true;
-  const success = await cartStore.addItem(flower.value.id, 1);
+  // 修正：直接調用，不聲明 const success
+  await cartStore.addItem(flower.value.id, 1);
   isAdding.value = false;
 };
 </script>

@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import apiClient from '../../infrastructure/api/apiClient';
 import { OrderRepository, type Order } from '../../infrastructure/repositories/OrderRepository';
 
-const router = useRouter();
+// 修正：移除了沒用到的 useRouter
 const orderRepo = new OrderRepository();
 const orders = ref<Order[]>([]);
 const isLoading = ref(true);
