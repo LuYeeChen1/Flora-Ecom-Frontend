@@ -2,12 +2,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { AddressRepository, type Address } from '../../infrastructure/repositories/AddressRepository';
-import { OrderRepository } from '../../infrastructure/repositories/OrderRepository';
+// 移除 OrderRepository，因为我们现在通过 cartStore 来下单
 import { useCartStore } from '../store/cartStore';
 
 const cartStore = useCartStore();
 const router = useRouter();
-const orderRepo = new OrderRepository();
 const addressRepo = new AddressRepository();
 const formatPrice = (val: number) => val.toFixed(2);
 
@@ -43,7 +42,7 @@ const currentAddress = computed(() => {
   return savedAddresses.value.find(a => a.id === selectedAddressId.value);
 });
 
-// ✅ 核心逻辑：双重确认下单
+// ✅ 核心修复：使用 cartStore.checkout 来保证状态同步
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
   
@@ -63,20 +62,23 @@ const handleCheckout = async () => {
   if (!confirmed) return;
 
   isCheckingOut.value = true;
-  try {
-    const response = await orderRepo.checkout({
-      receiverName: currentAddress.value.recipientName,
-      receiverPhone: currentAddress.value.phoneNumber,
-      shippingAddress: currentAddress.value.fullAddress
-    });
+  
+  // 🔽 修改点：调用 Store 的 Action，而不是直接调 Repo
+  const result = await cartStore.checkout(
+    currentAddress.value.fullAddress,
+    currentAddress.value.recipientName,
+    currentAddress.value.phoneNumber
+  );
 
-    alert(`🎉 Order placed successfully! Order ID: ${response.orderId}`);
+  isCheckingOut.value = false;
+
+  if (result.success) {
+    // 成功后跳转，此时购物车在 Store 里已经被清空了
+    alert(`🎉 Order placed successfully! Order ID: ${result.orderId}`);
     router.push('/orders'); 
-  } catch (err: any) {
-    console.error(err);
-    alert("Checkout Failed: " + (err.response?.data?.error || "Unknown error"));
-  } finally {
-    isCheckingOut.value = false;
+  } else {
+    // 失败处理
+    alert("Checkout Failed: " + result.error);
   }
 };
 </script>

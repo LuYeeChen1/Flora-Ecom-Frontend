@@ -33,7 +33,7 @@ const router = createRouter({
       path: '/seller/dashboard',
       name: 'seller-dashboard',
       component: SellerDashboardView,
-      meta: { requiresSeller: true } // 简化的 meta 标记，逻辑在下面 guard
+      meta: { requiresSeller: true }
     },
     
     {
@@ -49,7 +49,8 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach(async (to, from, next) => {
+// 修复：将 'from' 改为 '_from'，告诉 TS 忽略这个未使用的变量
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   
   if (to.meta.requiresAuth && !authStore.token) {
