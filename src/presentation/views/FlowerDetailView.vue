@@ -16,7 +16,7 @@ const loading = ref(true);
 const error = ref(null);
 const isAdding = ref(false);
 
-// 计算是否是店主
+// 计算是否是店主123
 const isOwner = computed(() => {
   if (!flower.value || !authStore.user) return false;
   // 注意：后端返回的 sellerId 和 Cognito ID (sub) 应该是匹配的
