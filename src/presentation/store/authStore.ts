@@ -92,10 +92,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function syncUserWithBackend() {
     if (!token.value) return;
 
+    // 讀取環境變數
+    const API_HOST = import.meta.env.VITE_CORE_API || 'http://localhost:8080';
+
     try {
       // console.log('🔄 [Sync] 正在连接 Spring Boot...');
       
-      const response = await axios.get<UserProfile>('http://localhost:8080/api/users/me', {
+      const response = await axios.get<UserProfile>(`${API_HOST}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${token.value}`
         }

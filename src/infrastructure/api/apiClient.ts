@@ -1,9 +1,14 @@
 import axios from 'axios';
 import { useAuthStore } from '../../presentation/store/authStore';
 
-// 1. 创建实例
+// 讀取環境變數 (如果讀不到就用 localhost 做後備)
+// 注意：Vercel 設定的值是 http://98.92.26.56:8080 (沒有 /api)
+const BASE_URL = import.meta.env.VITE_CORE_API || 'http://localhost:8080';
+
+// 1. 創建实例
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  // 這裡要把 /api 接上去
+  baseURL: `${BASE_URL}/api`,
   timeout: 10000,
 });
 
