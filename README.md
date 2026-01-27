@@ -33,7 +33,7 @@ A custom, immersive registration flow using **Event-Driven Architecture**.
 
 | Signal Sent (OTP) | Bond Established | Infrastructure Logic |
 | :---: | :---: | :---: |
-| <img src="./assets/auth-signal.jpg" width="250" /> | <img src="./assets/auth-success.png" width="250" /> | <img src="./assets/lambda-code.png" width="350" /> |
+| <img src="./assets/auth-signal.png" width="250" /> | <img src="./assets/auth-success.png" width="250" /> | <img src="./assets/lambda-code.png" width="350" /> |
 
 ### 2. ⚡ Instant Seller Onboarding (KYC Flow)
 Designed for seamless growth, the platform features an **Automated Role Transition** system.
