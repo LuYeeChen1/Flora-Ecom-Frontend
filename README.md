@@ -10,7 +10,7 @@
 
 ## 🔗 Live Demo
 * **Frontend:** (https://flora-ecom-frontend.vercel.app)
-* **Backend:** Hosted on AWS (Hybrid EC2 + Lambda)
+* **Backend:** Hosted on AWS (Hybrid EC2 + Lambda) (i will start this instance before 1 day of interview)
 
 ---
 
