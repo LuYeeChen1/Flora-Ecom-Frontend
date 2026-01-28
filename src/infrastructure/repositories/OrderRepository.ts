@@ -1,7 +1,6 @@
-import { useAuthStore } from '../../presentation/store/authStore';
 import apiClient from '../api/apiClient';
 
-// === 数据接口定义 (对应后端实体) ===
+// === 數據接口定義 ===
 export interface OrderItem {
   id: number;
   flowerName: string;
@@ -13,17 +12,15 @@ export interface OrderItem {
 export interface Order {
   id: number;
   totalPrice: number;
-  status: string; // PAID, PENDING, SHIPPED...
-  createdAt: string; // 后端返回的时间字符串
+  status: string;
+  createdAt: string;
   shippingAddress: string;
-  //  新增：后端现在会返回这些详细信息
   receiverName?: string;
   receiverPhone?: string;
   receiverEmail?: string;
   items: OrderItem[];
 }
 
-//  核心更新：下单请求体包含完整联系人信息
 export interface CheckoutRequest {
   receiverName: string;
   receiverPhone: string;
@@ -37,26 +34,15 @@ export interface CheckoutResponse {
 
 export class OrderRepository {
   
-  private getHeaders() {
-    const authStore = useAuthStore();
-    return { 
-      Authorization: `Bearer ${authStore.token}` 
-    };
-  }
-
-  // 1. 下单
+  // 1. 下單
   async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
-    const response = await apiClient.post('/orders/checkout', request, {
-      headers: this.getHeaders()
-    });
+    const response = await apiClient.post('/orders/checkout', request);
     return response.data;
   }
 
-  // 2. 获取我的订单列表
+  // 2. 獲取我的訂單列表
   async getMyOrders(): Promise<Order[]> {
-    const response = await apiClient.get('/orders', {
-      headers: this.getHeaders()
-    });
+    const response = await apiClient.get('/orders');
     return response.data;
   }
 }

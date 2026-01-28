@@ -1,3 +1,5 @@
+// src/infrastructure/repositories/SellerProfileRepository.ts
+
 import apiClient from '../api/apiClient';
 
 export class SellerProfileRepository {
@@ -12,7 +14,7 @@ export class SellerProfileRepository {
       // 返回狀態字串: "NONE", "PENDING", "ACTIVE", "REJECTED"
       return response.data; 
     } catch (error) {
-      // 如果是用戶還沒申請，可能會報錯，這裡可以視情況處理或拋出
+      // 首次訪問可能沒有狀態，視業務邏輯決定是否拋出
       throw error;
     }
   }

@@ -1,44 +1,35 @@
 // src/infrastructure/repositories/AxiosSellerRepository.ts
 
-import axios from 'axios';
+// 1. 引入統一的 apiClient (它已經配置好了 BaseURL 和 Token 攔截器)
+import apiClient from '../api/apiClient';
 
-// 1. 引入 Model (相对路径)
-import type { SellerApplication, SellerStatus } from '../../domain/models/Seller';
-// 2. 引入 Interface (相对路径)
+// 2. 引入 Model 和 Interface
 import type { SellerRepository } from '../../domain/interfaces/SellerRepository';
-// 3. 引入 Store (相对路径，修复之前的路径错误)
-import { useAuthStore } from '../../presentation/store/authStore';
+import type { SellerApplication, SellerStatus } from '../../domain/models/Seller';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-
-// 实现接口
+// 實現接口
 export class AxiosSellerRepository implements SellerRepository {
   
   async apply(application: SellerApplication): Promise<void> {
-    const authStore = useAuthStore();
-    
-    // 4. 修复 Token 获取：authStore.token 是属性，不是方法
-    const token = authStore.token; 
-
-    if (!token) {
-      throw new Error("Unauthorized: Please login first.");
+    try {
+      // ✅ 使用 apiClient，自動處理 https://api.flora-shops.com 和 Token
+      await apiClient.post('/seller/apply', application);
+    } catch (error: any) {
+      console.error('[SellerRepo] Apply failed:', error);
+      throw error;
     }
-
-    // 发送请求
-    await axios.post(`${API_URL}/seller/apply`, application, {
-      headers: {
-        'Authorization': `Bearer ${token}`, // 核心：携带 Token
-        'Content-Type': 'application/json'
-      }
-    });
   }
 
-  // 这里的 _userId 加下划线表示暂时未使用的参数
   async getStatus(_userId: string): Promise<SellerStatus> {
-    // 预留接口实现
-    return 'NONE';
+    try {
+      const response = await apiClient.get('/seller/status');
+      return response.data; // "NONE", "PENDING", "ACTIVE", "REJECTED"
+    } catch (error) {
+      // 預設返回 NONE 以免前端炸裂
+      return 'NONE';
+    }
   }
 }
 
-// 导出单例，供 Store 使用
+// 導出單例
 export const sellerRepository = new AxiosSellerRepository();

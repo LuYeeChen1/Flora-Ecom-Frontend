@@ -1,3 +1,5 @@
+// src/presentation/store/addressStore.ts
+
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import apiClient from '../../infrastructure/api/apiClient';
@@ -20,28 +22,23 @@ export const useAddressStore = defineStore('address', () => {
     if (!authStore.token) return;
     isLoading.value = true;
     try {
-      const res = await apiClient.get('/addresses', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      });
+      // apiClient 會自動攔截請求加上 Token，但這裡顯式加也沒錯，雙重保險
+      const res = await apiClient.get('/addresses');
       addresses.value = res.data;
     } catch (err) {
-      console.error(err);
+      console.error('Fetch addresses failed', err);
     } finally {
       isLoading.value = false;
     }
   }
 
   async function addAddress(addr: Address) {
-    await apiClient.post('/addresses', addr, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    await apiClient.post('/addresses', addr);
     await fetchAddresses();
   }
 
   async function deleteAddress(id: number) {
-    await apiClient.delete(`/addresses/${id}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    await apiClient.delete(`/addresses/${id}`);
     await fetchAddresses();
   }
 

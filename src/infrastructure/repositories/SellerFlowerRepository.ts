@@ -11,7 +11,7 @@ export interface FlowerData {
 
 export class SellerFlowerRepository {
   
-  // --- 1. 图片上传 ---
+  // --- 1. 圖片上傳 ---
   async getUploadUrl(fileType: string, fileName: string) {
     const response = await apiClient.get('/seller/flowers/upload-url', {
       params: { contentType: fileType, fileName: fileName }
@@ -20,6 +20,7 @@ export class SellerFlowerRepository {
   }
 
   async uploadToS3(uploadUrl: string, file: File) {
+    // S3 上傳不走後端，直接用 fetch
     await fetch(uploadUrl, {
       method: 'PUT',
       body: file,
@@ -46,26 +47,25 @@ export class SellerFlowerRepository {
     await apiClient.delete(`/seller/flowers/${id}`);
   }
 
-  // --- 3. 订单管理 (Order Operations) ---
+  // --- 3. 訂單管理 (Order Operations) ---
 
-  // 获取该卖家的所有关联订单（混合视图）
+  // 獲取該賣家的所有關聯訂單
   async getIncomingOrders() {
     const response = await apiClient.get('/seller/orders'); 
     return response.data;
   }
 
-  // [Action A] 发货：只发货属于当前卖家的商品 (支持混合订单)
-  // 对应后端 SellerController.shipOrder (PATCH /api/seller/orders/{id}/ship)
+  // [Action A] 發貨
   async shipOrder(orderId: number) {
     await apiClient.patch(`/seller/orders/${orderId}/ship`);
   }
 
-  // [Action B] 全单流转：SHIPPED -> DELIVERED
-  // 对应后端 OrderController.updateStatus (PATCH /api/orders/{id}/status)
+  // [Action B] 全單流轉
   async updateOrderStatus(orderId: number, status: string) {
-    await apiClient.patch(`/api/orders/${orderId}/status`, { status });
+    // ❌ 修復前: /api/orders/... (會變成 /api/api/orders/...)
+    // ✅ 修復後: /orders/...
+    await apiClient.patch(`/orders/${orderId}/status`, { status });
   }
 }
 
-// 导出单例，供 Store 使用
 export const sellerFlowerRepository = new SellerFlowerRepository();

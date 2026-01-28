@@ -1,24 +1,20 @@
+// src/presentation/store/cartStore.ts
+
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { CartRepository, type CartItem } from '../../infrastructure/repositories/CartRepository';
-import { useAuthStore } from './authStore';
-
-// 1. 引入 OrderRepository
 import { OrderRepository } from '../../infrastructure/repositories/OrderRepository';
+import { useAuthStore } from './authStore';
 
 export const useCartStore = defineStore('cart', () => {
   const repo = new CartRepository();
-  const orderRepo = new OrderRepository(); // 初始化
-
+  const orderRepo = new OrderRepository(); 
   const authStore = useAuthStore();
 
-  // --- State (状态) ---
   const items = ref<CartItem[]>([]);
   const isLoading = ref(false);
   const isCartOpen = ref(false); 
 
-  // --- Getters (自动计算) ---
-  
   const totalItems = computed(() => {
     return items.value.reduce((sum, item) => sum + item.quantity, 0);
   });
@@ -26,8 +22,6 @@ export const useCartStore = defineStore('cart', () => {
   const totalPrice = computed(() => {
     return items.value.reduce((sum, item) => sum + item.subtotal, 0);
   });
-
-  // --- Actions (动作) ---
 
   async function fetchCart() {
     if (!authStore.token) {
@@ -48,7 +42,7 @@ export const useCartStore = defineStore('cart', () => {
 
   async function addItem(flowerId: number | string, quantity: number = 1) {
     if (!authStore.token) {
-      alert("请先登录再购物");
+      alert("請先登錄再購物");
       return false;
     }
     
@@ -59,7 +53,7 @@ export const useCartStore = defineStore('cart', () => {
       return true;
     } catch (err) {
       console.error("Add to cart failed", err);
-      alert("添加失败，请重试");
+      alert("添加失敗，請重試");
       return false;
     } finally {
       isLoading.value = false;
@@ -75,6 +69,7 @@ export const useCartStore = defineStore('cart', () => {
     }
 
     try {
+      // 樂觀更新 UI
       const item = items.value.find(i => i.id === cartId);
       if (item) {
         item.quantity = newQty;
@@ -83,7 +78,7 @@ export const useCartStore = defineStore('cart', () => {
 
       await repo.updateQuantity(cartId, newQty);
     } catch (err) {
-      console.error("Update quantity failed, rolling back...", err);
+      console.error("Update failed, reverting...", err);
       await fetchCart();
     }
   }
@@ -93,12 +88,11 @@ export const useCartStore = defineStore('cart', () => {
       await repo.removeFromCart(cartId);
       items.value = items.value.filter(item => item.id !== cartId);
     } catch (err) {
-      console.error("Remove item failed", err);
+      console.error("Remove failed", err);
       await fetchCart();
     }
   }
 
-  // 修复：checkout 接收完整参数 (地址、姓名、电话)
   async function checkout(shippingAddress: string, receiverName: string, receiverPhone: string) {
     if (!authStore.token) {
       alert("Please login to checkout");
@@ -107,7 +101,6 @@ export const useCartStore = defineStore('cart', () => {
 
     isLoading.value = true;
     try {
-      // 1. 调用 API 下单，传入完整参数
       const result = await orderRepo.checkout({ 
         shippingAddress,
         receiverName, 
@@ -115,11 +108,10 @@ export const useCartStore = defineStore('cart', () => {
       });
       
       items.value = []; 
-      
       return { success: true, orderId: result.orderId };
     } catch (err: any) {
       console.error("Checkout failed", err);
-      const errorMsg = err.response?.data?.error || "Checkout failed. Please try again.";
+      const errorMsg = err.response?.data?.error || "Checkout failed.";
       return { success: false, error: errorMsg };
     } finally {
       isLoading.value = false;
