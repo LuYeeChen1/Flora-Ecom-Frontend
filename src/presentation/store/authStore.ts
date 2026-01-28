@@ -1,5 +1,3 @@
-// src/presentation/store/authStore.ts
-
 import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 import axios from 'axios';
 import { defineStore } from 'pinia';
@@ -62,21 +60,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // --- 🔥 強制刷新 (用於權限升級) ---
+  // --- 🔥 強制刷新 ---
   async function refreshUserSession() {
     console.log("🔄 [AuthStore] Force refreshing token for role update...");
     await checkAuth(true);
   }
 
-  // --- 3. 同步後端 ---
+  // --- 3. 同步後端 (修復點) ---
   async function syncUserWithBackend() {
     if (!token.value) return;
 
-    // ✅ 確保這裡讀取環境變數
-    const API_HOST = import.meta.env.VITE_CORE_API || 'http://localhost:8080';
+    // 🔥 核彈級修復：這裡也直接寫死，防止漏網之魚
+    const API_HOST = 'https://api.flora-shops.com';
 
     try {
-      // 這裡直接用 axios 避免循環依賴，但必須確保 URL 正確
       const response = await axios.get<UserProfile>(`${API_HOST}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${token.value}`
@@ -121,7 +118,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     isLoading.value = true;
     try {
-      await signOut(); // 使用 Amplify 的 signOut
+      await signOut(); 
     } catch (err: any) {
       console.error('Logout error', err);
     } finally {
@@ -137,17 +134,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user,             
-    token,            
-    isAuthenticated,  
-    isLoading,        
-    error,            
-    login,            
-    checkAuth,        
-    refreshUserSession, 
-    register,         
-    verifyCode,       
-    logout,           
-    syncUserWithBackend 
+    user, token, isAuthenticated, isLoading, error,            
+    login, checkAuth, refreshUserSession, register, verifyCode, logout, syncUserWithBackend 
   };
 });
