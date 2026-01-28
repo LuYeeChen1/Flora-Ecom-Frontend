@@ -66,14 +66,16 @@ export const useAuthStore = defineStore('auth', () => {
     await checkAuth(true);
   }
 
-  // --- 3. 同步後端 (修復點) ---
+// --- 3. 同步後端 ---
   async function syncUserWithBackend() {
     if (!token.value) return;
 
-    // 🔥 核彈級修復：這裡也直接寫死，防止漏網之魚
-    const API_HOST = 'https://api.flora-shops.com';
+    // ✅ 恢復動態讀取：跟 apiClient 保持一致
+    const API_HOST = import.meta.env.VITE_CORE_API || 'http://localhost:8080';
 
     try {
+      console.log(`[AuthStore] Syncing user profile from: ${API_HOST}`);
+      
       const response = await axios.get<UserProfile>(`${API_HOST}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${token.value}`
