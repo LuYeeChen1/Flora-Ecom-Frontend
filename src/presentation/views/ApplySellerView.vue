@@ -2,20 +2,19 @@
 /**
  * ==========================================================
  * [Clean Architecture - Presentation Layer]
- * 职责：负责 UI 渲染、用户交互及即时准入逻辑。
+ * 職責：負責 UI 渲染、用戶交互及即時准入邏輯。
  * ==========================================================
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { SellerProfileRepository } from '../../infrastructure/repositories/SellerProfileRepository';
 import { useAuthStore } from '../store/authStore';
 import { useSellerStore } from '../store/sellerStore';
-// ✅ 引入 Repository
-import { SellerProfileRepository } from '../../infrastructure/repositories/SellerProfileRepository';
 
 const sellerStore = useSellerStore();
 const authStore = useAuthStore();
-const profileRepo = new SellerProfileRepository(); // ✅ 实例化
+const profileRepo = new SellerProfileRepository(); 
 
-// --- UI 状态 ---
+// --- UI 狀態 ---
 const sellerType = ref<'INDIVIDUAL' | 'BUSINESS'>('INDIVIDUAL'); 
 const isIdVerified = ref(false);       
 const isValidating = ref(false);       
@@ -27,26 +26,24 @@ const countries = [
   { code: '+81', flag: '🇯🇵' }, { code: '+86', flag: '🇨🇳' }
 ];
 
-// --- 生命周期 ---
+// --- 生命周期：初始化同步狀態 ---
 onMounted(async () => {
   try {
-    // ❌ 删除旧代码: axios.get('http://localhost:8080/api/seller/status'...)
-    // ✅ 新代码:
+    // 確保通過 Repository 呼叫生產環境 API
     const status = await profileRepo.getStatus();
-    
     applicationStatus.value = status === 'ACTIVE' ? 'APPROVED' : status;
   } catch (err) {
-    console.error("无法同步状态", err);
+    console.error("無法同步狀態", err);
   }
 });
 
-// --- 资料回显 ---
+// --- 資料回顯 ---
 const displayName = computed(() => authStore.user?.username || authStore.user?.email?.split('@')[0] || 'User');
 const userAvatar = computed(() => authStore.user?.avatarUrl); 
 const userInitials = computed(() => displayName.value.charAt(0).toUpperCase());
 const userRole = computed(() => authStore.user?.role || 'GUEST');
 
-// --- 表单模型 ---
+// --- 表單模型 ---
 const form = reactive({
   realName: '',          
   idCardNumber: '',      
@@ -58,7 +55,7 @@ const form = reactive({
   address: ''            
 });
 
-// --- 格式化 ---
+// --- 格式化邏輯 ---
 const formattedID = computed({
   get: () => {
     const v = form.idCardNumber.replace(/\D/g, ''); 
@@ -77,10 +74,10 @@ watch(sellerType, (newType) => {
   }
 });
 
-// --- 业务逻辑 ---
+// --- 業務邏輯 ---
 const handleValidate = () => {
   if (form.idCardNumber.length < 5) {
-    alert("请输入有效的证件号码或注册号。");
+    alert("請輸入有效的證件號碼或註冊號。");
     return;
   }
   isValidating.value = true;
@@ -114,22 +111,19 @@ const handleSubmit = async () => {
     await sellerStore.submitApplication(payload);
     
     if (sellerStore.successMessage || !sellerStore.error) {
-      
-      // 🔥🔥🔥 关键修复点 🔥🔥🔥
-      // 我们不调用普通的 checkAuth()，因为那会用缓存的旧 Token (Customer)。
-      // 我们调用 refreshUserSession()，强制 AWS 签发新 Token (Seller)。
+      // 🔥 生產環境核心：強制刷新 Session 以從 Cognito 獲取 Seller 權限
       try {
         await authStore.refreshUserSession();
-        console.log("✅ 权限升级成功，当前角色:", authStore.user?.role);
+        console.log("✅ 權限升級成功，當前角色:", authStore.user?.role);
       } catch (e) {
-        console.warn("自动刷新失败，请重新登录", e);
+        console.warn("自動刷新失敗，請重新登入", e);
       }
 
       showSuccessOverlay.value = true; 
       applicationStatus.value = 'APPROVED'; 
     }
   } catch (err) {
-    console.error("提交失败", err);
+    console.error("提交失敗", err);
   }
 };
 </script>
@@ -142,13 +136,13 @@ const handleSubmit = async () => {
          class="relative z-10 w-full max-w-4xl bg-slate-900/40 backdrop-blur-xl p-12 text-center rounded-xl border border-white/10 shadow-2xl">
        <div class="mb-8">
          <div class="wax-seal scale-125 mb-6"><span class="seal-v">V</span></div>
-         <h2 class="text-3xl text-white tracking-widest font-serif italic">欢迎，花艺师</h2>
+         <h2 class="text-3xl text-white tracking-widest font-serif italic">歡迎，花藝師</h2>
          <p class="mt-6 text-slate-300 italic font-serif leading-relaxed px-10">
-           “契约已成，您的花园现在正式对世界开放。愿花香在您的指尖绽放。”
+           “契約已成，您的花園現在正式對世界開放。願花香在您的指尖綻放。”
          </p>
        </div>
        <RouterLink to="/profile" class="text-purple-400 hover:text-purple-300 text-sm tracking-widest border-b border-purple-400/30 pb-1">
-         ← 前往经营中心
+         ← 前往經營中心
        </RouterLink>
     </div>
 
@@ -156,9 +150,9 @@ const handleSubmit = async () => {
          class="relative z-10 w-full max-w-4xl bg-rose-950/40 backdrop-blur-xl p-12 text-center rounded-xl border border-rose-500/10 shadow-2xl">
        <div class="mb-8">
          <div class="text-5xl mb-6 text-rose-400">🥀</div>
-         <h2 class="text-3xl text-rose-200 tracking-widest font-serif italic">契约已终结</h2>
+         <h2 class="text-3xl text-rose-200 tracking-widest font-serif italic">契約已終結</h2>
          <p class="mt-6 text-rose-300/70 italic font-serif leading-relaxed px-10">
-           “很遗憾，您的卖家资格已被注销。契约一旦解除，将无法再次申请。”
+           “很遺憾，您的賣家資格已被註銷。契約一旦解除，將無法再次申請。”
          </p>
        </div>
     </div>
@@ -272,7 +266,7 @@ const handleSubmit = async () => {
 
             <div class="pt-6 border-t border-white/5 flex flex-col items-end gap-4">
                  <div v-if="sellerStore.error" class="w-full p-3 bg-rose-500/10 border border-rose-500/20 rounded text-rose-400 text-xs text-left animate-pulse">
-                   ⚠️ 提交异常：{{ sellerStore.error }}
+                   ⚠️ 提交異常：{{ sellerStore.error }}
                  </div>
                  <button type="submit" :disabled="!isIdVerified || sellerStore.isLoading" class="px-10 py-3 bg-purple-600/20 text-purple-200 border border-purple-500/50 hover:bg-purple-600/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                     {{ sellerStore.isLoading ? 'Processing...' : 'Submit Application →' }}
@@ -292,15 +286,15 @@ const handleSubmit = async () => {
         <div class="relative w-full max-w-lg bg-[#fdfaf5] p-10 shadow-2xl rounded-sm animate-letter-slide text-slate-800 border-t-[8px] border-purple-900 font-serif">
           <div class="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]"></div>
           <div class="relative space-y-8 text-center">
-            <h2 class="text-2xl text-purple-900 italic font-bold border-b border-purple-100 pb-4 tracking-widest uppercase">花艺师契约 · 封存</h2>
+            <h2 class="text-2xl text-purple-900 italic font-bold border-b border-purple-100 pb-4 tracking-widest uppercase">花藝師契約 · 封存</h2>
             <p class="text-sm leading-relaxed italic font-medium typewriter">
-                致管理处：<br/><br/>
-                申请人 <span class="text-purple-700 font-bold underline decoration-purple-300 decoration-wavy">{{ form.realName }}</span> 已签署契约。<br/>
-                契约已即时生效，花园之门已开启。<br/>
-                愿花开之时即是相见之日。
+                致管理處：<br/><br/>
+                申請人 <span class="text-purple-700 font-bold underline decoration-purple-300 decoration-wavy">{{ form.realName }}</span> 已簽署契約。<br/>
+                契約已即時生效，花園之門已開啟。<br/>
+                願花開之時即是相見之日。
             </p>
             <div class="flex justify-center pt-6"><div class="wax-seal animate-stamp"><span class="seal-v">V</span></div></div>
-            <div class="pt-10"><button @click="showSuccessOverlay = false" class="text-[10px] uppercase tracking-[0.3em] text-slate-400 hover:text-purple-600 transition-colors">[ 关闭此函 ]</button></div>
+            <div class="pt-10"><button @click="showSuccessOverlay = false" class="text-[10px] uppercase tracking-[0.3em] text-slate-400 hover:text-purple-600 transition-colors">[ 關閉此函 ]</button></div>
           </div>
         </div>
       </div>
@@ -309,7 +303,6 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
-/* 紫罗兰与火漆美学样式 */
 .wax-seal {
   width: 60px; height: 60px;
   background: radial-gradient(circle, #9b1c1c 0%, #7f1d1d 100%);

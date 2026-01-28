@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * ==========================================================
+ * [Clean Architecture - Presentation Layer]
+ * 職責：首頁視圖，展示季節性花卉典藏。
+ * ==========================================================
+ */
 import { onMounted } from 'vue';
 import FlowerCard from '../components/FlowerCard.vue';
 import HeroSection from '../components/HeroSection.vue';
@@ -6,18 +12,17 @@ import { useFlowerStore } from '../store/flowerStore';
 
 // 1. 初始化 Store
 const flowerStore = useFlowerStore();
-// ❌ 删除: const flowerRepo = new HttpFlowerRepository(); (Store 内部已经处理了，View 不需要管)
 
 /**
- * 核心逻辑：组件挂载后异步获取公开鲜花列表
- * 访问路径：http://localhost:8080/api/public/flowers
+ * 核心邏輯：組件掛載後異步獲取公開鮮花列表
+ * 這裡會自動讀取生產環境網址 (VITE_CORE_API)
  */
 onMounted(async () => {
   try {
-    // ✅ 修复 1: 不再传递参数，直接调用
+    // ✅ 調用封裝好的 Store 邏輯
     await flowerStore.fetchFlowers();
   } catch (error) {
-    console.error("加载季节性典藏花朵失败:", error);
+    console.error("加載季節性典藏花朵失敗，請確認網絡連線:", error);
   }
 });
 </script>
@@ -34,7 +39,7 @@ onMounted(async () => {
 
       <div v-if="flowerStore.isLoading" class="text-center py-20">
         <div class="inline-block animate-spin text-violet-600 text-3xl">✑</div>
-        <p class="mt-4 text-slate-400 font-serif text-sm">正在书写信件...</p>
+        <p class="mt-4 text-slate-400 font-serif text-sm">正在書寫信件...</p>
       </div>
 
       <div v-else class="grid grid-cols-1 gap-y-12 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3 xl:gap-x-12">
@@ -47,3 +52,7 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 此視圖主要依賴全局樣式與 Tailwind，不需額外定義 scoped CSS */
+</style>
