@@ -1,16 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 
 // 直接引用 public 文件夹下的图片
 const heroImage = '/violet-bg.jpg'
-
-const isPlaying = ref(false)
-
-const handleStart = () => {
-  // 简单的交互反馈
-  isPlaying.value = !isPlaying.value
-  console.log('Journey started.')
-}
 </script>
 
 <template>
@@ -47,27 +38,6 @@ const handleStart = () => {
         我们需要不同的色彩，来描绘这世间千变万化的爱意。<br>
         <span class="text-sm text-slate-300 mt-2 block">Tell us your story, and we will choose the perfect bouquet.</span>
       </p>
-
-      <div class="flex flex-col sm:flex-row gap-6 justify-center items-center animate-fade-in-up delay-300">
-        <button 
-          @click="handleStart"
-          class="group relative px-10 py-3 bg-violet-600/90 hover:bg-violet-500 text-white rounded-sm font-semibold tracking-widest transition-all duration-300 shadow-[0_0_20px_rgba(124,58,237,0.5)] hover:shadow-[0_0_30px_rgba(139,92,246,0.8)] hover:-translate-y-1 overflow-hidden"
-        >
-          <div class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-          <span class="relative z-10 flex items-center gap-2">
-            定制专属花礼
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" 
-                 class="w-4 h-4 transition-transform duration-500" 
-                 :class="{'rotate-90': isPlaying}">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </span>
-        </button>
-        
-        <button class="px-10 py-3 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md border border-white/20 rounded-sm font-medium tracking-widest transition-all hover:tracking-[0.2em] hover:border-white/40">
-          浏览全品类图鉴
-        </button>
-      </div>
     </div>
   </div>
 </template>
