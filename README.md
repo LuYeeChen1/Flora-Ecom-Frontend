@@ -9,8 +9,8 @@
 > Integrating a Spring Boot Monolith (EC2) for core transactional logic with AWS Serverless (Lambda) for edge computing and identity management.
 
 ## 🔗 Live Demo
-* **Frontend:** (https://flora-ecom-frontend-4vitn8zch-luyeechen1s-projects.vercel.app/)
-* **Backend:** Hosted on AWS (Hybrid EC2 + Lambda)
+* **Frontend:** (https://flora-ecom-frontend.vercel.app)
+* **Backend:** Hosted on AWS (Hybrid EC2 + Lambda) (i will start this instance before 1 day of interview)
 
 ---
 
