@@ -1,7 +1,16 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 
 // 直接引用 public 文件夹下的图片
 const heroImage = '/violet-bg.jpg'
+
+const isPlaying = ref(false)
+
+const handleStart = () => {
+  // 简单的交互反馈
+  isPlaying.value = !isPlaying.value
+  console.log('Journey started.')
+}
 </script>
 
 <template>
