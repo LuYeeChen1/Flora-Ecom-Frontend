@@ -1,16 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
-// 直接引用 public 文件夹下的图片
+// 直接引用 public 资料夹下的图片
 const heroImage = '/violet-bg.jpg'
-
-const isPlaying = ref(false)
-
-const handleStart = () => {
-  // 简单的交互反馈
-  isPlaying.value = !isPlaying.value
-  console.log('Journey started.')
-}
 </script>
 
 <template>
@@ -42,27 +32,24 @@ const handleStart = () => {
         封缄您的<span class="text-violet-300 decoration-violet-400 underline decoration-1 underline-offset-8 decoration-wavy">万千心意</span>
       </h1>
       
-      <p class="text-lg md:text-xl text-slate-100 mb-12 max-w-3xl mx-auto leading-relaxed tracking-wider border-l-2 border-violet-400/50 pl-6 text-left bg-slate-900/40 p-6 backdrop-blur-sm rounded-r-lg shadow-lg animate-fade-in-up delay-200 hover:bg-slate-900/50 transition-colors duration-500">
+      <p class="text-lg md:text-xl text-slate-100 max-w-3xl mx-auto leading-relaxed tracking-wider border-l-2 border-violet-400/50 pl-6 text-left bg-slate-900/40 p-6 backdrop-blur-sm rounded-r-lg shadow-lg animate-fade-in-up delay-200 hover:bg-slate-900/50 transition-colors duration-500">
         <span class="text-violet-200 font-semibold">热烈的玫瑰、纯洁的百合、温柔的郁金香……</span><br/>
         我们需要不同的色彩，来描绘这世间千变万化的爱意。<br>
         <span class="text-sm text-slate-300 mt-2 block">Tell us your story, and we will choose the perfect bouquet.</span>
       </p>
+
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 仅保留文字进入的动画 (Fade In Up)，
-  背景完全静止。
-*/
-
+/* 进场动画 (Fade In Up) */
 .animate-fade-in-up {
   animation: fadeInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.3s; }
-.delay-300 { animation-delay: 0.5s; }
 
 @keyframes fadeInUp {
   from { 
